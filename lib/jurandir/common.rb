@@ -47,7 +47,7 @@ module Jurandir
     print "\\____/ \\__,_|_|  \\__,_|_| |_|\\__,_|_|_|    \\_| |_/\\__,_|_| |_| |_|_|_| |_| \\_|   |_|_| |_|\\__,_|\\___|_|   \n".red.bold
     print "                   .:/+ooo++/-.                   \n".red.bold
     print "              -+ooo/-.`   ``.:+ooo/.              +------------------------------------------------------+\n".red.bold
-    print "           -ss/`                  -oso.           | .:jurandir.rb, the perfect admin panel finder v1.2:. |\n".red.bold
+    print "           -ss/`                  -oso.           | .:jurandir.rb, the perfect admin panel finder v1.5:. |\n".red.bold
     print "         /h+`                      -oyMh-         |        .:Coded By SuperSenpai & PrestusHood:.        |\n".red.bold
     print "       :domd/`                   .-.yNMssy.       |~+~Sponsored by Lolicon Squad & ProtoWave Reloaded~+~ |\n".red.bold
     print "      sMd  +NN+                    `MNNN .d/      |                                                      |\n".red.bold

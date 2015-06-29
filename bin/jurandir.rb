@@ -3,20 +3,24 @@
 require 'optparse'
 require 'colorize'
 
+$:.unshift(File.expand_path('../lib'))
+
 module Jurandir
   require 'jurandir'
 
-  def Jurandir.main(parser, opts = {})
-    Jurandir::banner
-
+  def Jurandir.main(options = {})
+    Jurandir::register_modules
+    
     begin
-      tool = Jurandir.create(options[:tool], options[:tool_opts])
-      tool.parse_opts(parser)
+      tool = Jurandir::create_module(options[:tool], options[:tool_opts])
+      tool.parse_opts(OptionParser.new)
     rescue UnknownModuleError
-      Jurandir::die "ERROR: Unknown tool #{options[:tool]}".bg_red
+      Jurandir::die "ERROR: Unknown tool: #{options[:tool]}".bg_red
     end
+    
+    Jurandir::banner   
     tool.run
-  end  
+  end
 end
 
 options = {
@@ -24,7 +28,7 @@ options = {
   :tool_opts => {}
 }
 
-parser = OptionParser.new do |opts|
+OptionParser.new do |opts|
   opts.banner = "Usage: ruby jurandir.rb [options]"
 
   opts.on("--tool <tool>", "What tool will be used") do |tool|
@@ -35,6 +39,6 @@ parser = OptionParser.new do |opts|
     puts opts
     exit
   end
-end
+end.parse!
 
-Jurandir::main(parser, options)
+Jurandir::main(options)

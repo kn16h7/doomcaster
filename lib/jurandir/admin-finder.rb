@@ -1,4 +1,10 @@
 module Jurandir
+  class String
+    def bg_red
+      self.colorize(:background => :red, :color => :white)
+    end
+  end
+  
   module Modules
     class AdminFinder < Jurandir::JurandirModule
       def initialize(opts)
@@ -8,6 +14,12 @@ module Jurandir
       def run
         site = self.options[:host]
         code = self.options[:code]
+
+        list_path = unless options[:list_path]
+                      ENV['HOME'] + "/.jurandir.rb/lists"
+                    else
+                      options[:list_path]
+                    end
         
         unless site
           print " Enter the website you want to scan \n".red.bold
@@ -16,28 +28,41 @@ module Jurandir
           site = gets.chomp
         end
 
+        codes = Jurandir::get_langs(list_path)
+        
         unless code
           print "\n\n"
           print " Enter the coding language of the website \n".red.bold
-          print" e.g.: asp, php, cfm, any\n".red.bold
-          print" If you don't know the launguage used in the coding then simply type ** any ** \n".red.bold
-          print"--> ".red.bold
-          code = gets.chomp
+          print " If you don't know the launguage used in the coding then simply type ** any ** \n".red.bold
+          print " The available languages are:\n".red.bold
+
+          codes.each_index { |idx|
+            puts "[#{idx}] #{codes[idx]}".red.bold
+          }
+
+          loop do
+            begin
+              print " --> ".red.bold
+              code = Integer(gets.chomp)
+
+              unless codes[code]
+                puts "Unknown language!".bg_red
+              else
+                break
+              end
+            rescue ArgumentError
+              puts "Invalid input!".bg_red
+            end
+          end
         end
         
         site = "http://" + site if site !~ /^http:/
         site = site + "/" if site !~ /\/$/
-
-        codes = Jurandir::get_langs(@options[:list_path])
-
-        if codes.include?(code)
-          print "\n->The website: #{site}\n".green
-          print "->Source of the website: #{code}\n".green
-          print "->Scan of the admin control panel is progressing...\n\n\n".green
-          Jurandir::search_generic(site, @options[:list_path] + "/#{code}_list")
-        else
-          Jurandir::die "ERROR: Unknown language: #{code}\n".bg_red
-        end
+        
+        print "\n->The website: #{site}\n".green
+        print "->Source of the website: #{code}\n".green
+        print "->Scan of the admin control panel is progressing...\n\n\n".green
+        Jurandir::search_generic(site, list_path + "/#{codes[code]}_list")
       end
 
       def parse_opts(parser)
@@ -52,6 +77,7 @@ module Jurandir
         parser.on("--list-path <path>", "The path where to look up for lists") do |path|
           self.options[:list_path]
         end
+        parser.parse!
       end
 
       def Jurandir.search_generic(site, list_file)
@@ -110,7 +136,6 @@ module Jurandir
                 break
               end          
             end
-            
           end
         end
       end
@@ -130,7 +155,6 @@ module Jurandir
       def Jurandir.print_langs(list_path)
         get_langs(list_path).each { |lang| puts lang }
       end
-      
     end
   end
 end

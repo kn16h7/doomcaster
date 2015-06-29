@@ -7,6 +7,8 @@ Gem::Specification.new do |s|
 
   files = `git ls-files`.split($/)
   files.delete('.gitignore')
+  files.delete('Rakefile')
+  files.delete('jurandir.gemspec')
   
   s.files = files
   s.executables = s.files.grep(/^bin\//) { |file| File.basename(file) }
