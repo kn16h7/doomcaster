@@ -12,6 +12,7 @@ module Jurandir
       end
 
       def run
+        @parser.parse!
         site = self.options[:host]
         code = self.options[:code]
 
@@ -66,18 +67,27 @@ module Jurandir
       end
 
       def parse_opts(parser)
-        parser.on("--host <host>", "The target host to be scanned") do |host|
+        @parser = parser
+
+        @parser.separator ""
+        @parser.separator "admin-finder tool specific options:\n"
+        
+        @parser.on("--host <host>", "The target host to be scanned") do |host|
           self.options[:host] = host
         end
 
-        parser.on("--lang <lang>", "The language of the host's back-end") do |lang|
+        @parser.on("--lang <lang>", "The language of the host's back-end") do |lang|
           self.options[:lang] = lang
         end
 
-        parser.on("--list-path <path>", "The path where to look up for lists") do |path|
+        @parser.on("--list-path <path>", "The path where to look up for lists") do |path|
           self.options[:list_path]
         end
-        parser.parse!
+
+        @parser.on("--help", "Print this help message") do |opt|
+          puts @parser
+          exit          
+        end
       end
 
       def Jurandir.search_generic(site, list_file)

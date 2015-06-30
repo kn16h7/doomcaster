@@ -23,7 +23,8 @@ module Jurandir
   @@modules = {}
   
   class JurandirModule
-    attr_reader :name, :options
+    attr_reader :name
+    attr_accessor :options
     protected :initialize
 
     def initialize(name, options = {})
@@ -41,15 +42,20 @@ module Jurandir
   end
 
   def Jurandir.register_modules
-    @@modules['admin-finder'] = Modules::AdminFinder
+    @@modules['admin-finder'] = Modules::AdminFinder.new('admin-finder')
   end
 
-  def Jurandir.create_module(name, opts)
+  def Jurandir.get_module(name, options = {})
     unless @@modules[name]
       raise UnknownModuleError
     else
-      @@modules[name].new(opts)
+      @@modules[name].options = options
+      @@modules[name]
     end
+  end
+
+  def Jurandir.modules
+    @@modules
   end
   
   def Jurandir.banner

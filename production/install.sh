@@ -4,6 +4,7 @@ echo "Installing jurandir.rb..."
 
 LISTS_PATH=$HOME/.jurandir.rb/lists
 
+
 if ! mkdir -p $LISTS_PATH; then
 	echo "FATAL: Failed to create lists directory"
 	exit 1
@@ -14,7 +15,7 @@ if ! cp lists/* $LISTS_PATH; then
 	exit 1
 fi
 
-echo "list set up, OK"
+echo "list set up OK"
 echo "Installing gem..."
 
 gem install jurandir.rb*.gem
