@@ -10,9 +10,17 @@ module Jurandir
   require 'optparse'
   
   class Application
+
+    def Application.setup
+      trap('INT') do
+        puts "Exiting (user interrupt).."
+        exit
+      end
+    end
     
     def Application.run
       Jurandir::register_modules
+      setup
 
       options = {
                  :tool => nil,
@@ -53,9 +61,7 @@ module Jurandir
       end
 
       main_parser.parse!
-
       Jurandir::banner
-      
       what_tool.run
     end
   end
