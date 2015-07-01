@@ -1,6 +1,6 @@
 
 Gem::Specification.new do |s|
-  s.name = 'jurandir.rb'
+  s.name = 'lolicon.rb'
   s.version = '1.5'
   s.summary = 'Lolicon Squad oficial Ruby script.'
   s.description = %q{Well, I think the origin of this script auto-explain its purpose, yeah?}

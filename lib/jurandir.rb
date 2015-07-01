@@ -61,7 +61,12 @@ module Jurandir
       end
 
       main_parser.parse!
-      Jurandir::banner
+
+      unless what_tool
+        Jurandir::die "ERROR: No tool given!".bg_red
+      end
+      
+      Jurandir::banner      
       what_tool.run
     end
   end
