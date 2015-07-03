@@ -5,7 +5,7 @@ require 'jurandir/admin-finder'
 require 'jurandir/errors'
 
 module Jurandir
-  VERSION = '1.5'
+  VERSION = '1.6'
 
   require 'optparse'
   
@@ -30,7 +30,7 @@ module Jurandir
       what_tool = nil
       
       main_parser = OptionParser.new do |opts|
-        opts.banner = "Usage: ruby jurandir.rb [options]"
+        opts.banner = "Usage: ruby lolicon.rb [options]"
         
         opts.on("--tool <tool>", "What tool will be used") do |tool|
           options[:tool] = tool

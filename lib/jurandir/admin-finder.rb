@@ -17,7 +17,7 @@ module Jurandir
         lang = self.options[:lang]
 
         list_path = unless options[:list_path]
-                      ENV['HOME'] + "/.jurandir.rb/lists"
+                      ENV['HOME'] + "/.lolicon.rb/lists"
                     else
                       options[:list_path]
                     end
