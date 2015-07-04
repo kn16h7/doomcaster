@@ -14,7 +14,7 @@ desc "Build the project in a distributable zip."
 task :package do
   sh 'gem build lolicon.gemspec'
   FileUtils.mv("lolicon.rb-#{Jurandir::VERSION}.gem", 'production')
-  FileUtils.copy_entry('lists/', 'production/lists')
+  FileUtils.copy_entry('wordlists/', 'production/wordlists')
   sh "zip -r lolicon-#{Jurandir::VERSION}.zip production/"
 end
 

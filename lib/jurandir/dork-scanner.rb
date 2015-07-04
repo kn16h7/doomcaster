@@ -7,10 +7,10 @@ module Jurandir
         super('dork-scanner', {})
       end
 
-      def self.desc
-        Jurandir::ModuleDesc.new(%q{
-A tool to look for vulnerable sites based on a Google Dork.
-                                 }, %Q{
+      def desc
+        Jurandir::ModuleDesc.new(
+                                 %q{
+A tool to look for vulnerable sites based on a Google Dork.}, %Q{
 
                                  })
       end

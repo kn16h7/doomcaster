@@ -41,7 +41,7 @@ module Jurandir
       @options = options
     end
 
-    def self.desc
+    def desc
       raise "Not implemented"
     end
 

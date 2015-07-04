@@ -5,53 +5,53 @@ module Jurandir
     end
   end
   
-  module Module
+  module Modules
     class AdminFinder < Jurandir::JurandirModule
       def initialize
         super('admin-finder', {})
       end
 
-      def self.desc
+      def desc
         Jurandir::ModuleDesc.new(
                                  %q{A tool for find the administrative page in websites.
                                  }, %Q{
-This tool try to find the admin page of an website\n
-by brute force, based on a list and in some previous\n
-conditions. This tool will ask you for a site and\n
-an language for select a list and start.\n
-\n
-The wordlists used are inside:/home/your-home/.lolicon.rb/wordlists/admin-lists\n
-The default path where this tool will look for lists\n
-is the above path. But you can specify an alternative\n
-path by the command line option: --list-path.\n
-\n
-LISTS:\n
-To add a new possible admin page, just go to the\n
-path where the wordlists are, edit the list you want\n
-and append the piece of URL to the final of the list.\n
-\n
-If you want to create a new list for a new language,\n
-create a new file inside the path with the name:\n
-<language>_list. For example:\n
-\n
-A list for the php language:\n
-php_list\n
-\n
-The first line of the file must specify the language\n
-in this format:\n
-LANGUAGE: <language>\n
-\n
-For example:\n
+This tool try to find the admin page of an website
+by brute force, based on a list and in some previous
+conditions. This tool will ask you for a site and
+an language for select a list and start.
 
-php_list:\n
-LANGUAGE: php\n
-/admin\n
-/adm\n
-/admin.php\n
-...\n
-\n
-It's important to you to do the things alright, otherwise\n
-the tool will not work!\n
+The wordlists used are inside:/home/your-home/.lolicon.rb/wordlists/admin-lists
+The default path where this tool will look for lists
+is the above path. But you can specify an alternative
+path by the command line option: --list-path.
+
+LISTS:
+To add a new possible admin page, just go to the
+path where the wordlists are, edit the list you want
+and append the piece of URL to the final of the list.
+
+If you want to create a new list for a new language,
+create a new file inside the path with the name:
+<language>_list. For example:
+
+A list for the php language:
+php_list
+
+The first line of the file must specify the language
+in this format:
+LANGUAGE: <language>
+
+For example:
+
+php_list:
+LANGUAGE: php
+/admin
+/adm
+/admin.php
+...
+
+It's important to you to do the things alright, otherwise
+the tool will not work!
 
 That's all. Greetings from SuperSenpai!
                                  })
