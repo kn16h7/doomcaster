@@ -5,10 +5,56 @@ module Jurandir
     end
   end
   
-  module Modules
+  module Module
     class AdminFinder < Jurandir::JurandirModule
-      def initialize(opts)
-        super('admin-finder', opts)
+      def initialize
+        super('admin-finder', {})
+      end
+
+      def self.desc
+        Jurandir::ModuleDesc.new(
+                                 %q{A tool for find the administrative page in websites.
+                                 }, %Q{
+This tool try to find the admin page of an website\n
+by brute force, based on a list and in some previous\n
+conditions. This tool will ask you for a site and\n
+an language for select a list and start.\n
+\n
+The wordlists used are inside:/home/your-home/.lolicon.rb/wordlists/admin-lists\n
+The default path where this tool will look for lists\n
+is the above path. But you can specify an alternative\n
+path by the command line option: --list-path.\n
+\n
+LISTS:\n
+To add a new possible admin page, just go to the\n
+path where the wordlists are, edit the list you want\n
+and append the piece of URL to the final of the list.\n
+\n
+If you want to create a new list for a new language,\n
+create a new file inside the path with the name:\n
+<language>_list. For example:\n
+\n
+A list for the php language:\n
+php_list\n
+\n
+The first line of the file must specify the language\n
+in this format:\n
+LANGUAGE: <language>\n
+\n
+For example:\n
+
+php_list:\n
+LANGUAGE: php\n
+/admin\n
+/adm\n
+/admin.php\n
+...\n
+\n
+It's important to you to do the things alright, otherwise\n
+the tool will not work!\n
+
+That's all. Greetings from SuperSenpai!
+                                 })
       end
 
       def run
@@ -16,10 +62,10 @@ module Jurandir
         site = self.options[:host]
         lang = self.options[:lang]
 
-        list_path = unless options[:list_path]
-                      ENV['HOME'] + "/.lolicon.rb/lists"
+        list_path = unless self.options[:list_path]
+                      ENV['HOME'] + "/.lolicon.rb/wordlists/admin-lists"
                     else
-                      options[:list_path]
+                      self.options[:list_path]
                     end
         
         unless site
@@ -85,9 +131,14 @@ module Jurandir
           self.options[:list_path] = path
         end
 
-        @parser.on("--help", "Print this help message") do |opt|
+        @parser.on("--help", "Print this help message") do
           puts @parser
-          exit          
+          exit
+        end
+
+        @parser.on("--manual", "Print a detailed help message") do
+          puts self.desc.detailed
+          exit
         end
       end
 
@@ -179,9 +230,9 @@ module Jurandir
         }.select { |entry|
           !File.readable?(entry)
         }.select { |file|
-          File.open(list_path + '/' + file, "r").readline() =~ /LANGUAGE/
+          File.open(list_path + '/' + file, "r").readline =~ /LANGUAGE:/
         }.collect { |file|
-          File.open(list_path + '/' + file, "r").readline().split(" ")[1]
+          File.open(list_path + '/' + file, "r").readline.split(" ")[1]
         }
       end
 

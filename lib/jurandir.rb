@@ -2,6 +2,7 @@ $: << File.expand_path(File.dirname(__FILE__))
 
 require 'jurandir/common'
 require 'jurandir/admin-finder'
+require 'jurandir/dork-scanner'
 require 'jurandir/errors'
 
 module Jurandir
@@ -10,7 +11,6 @@ module Jurandir
   require 'optparse'
   
   class Application
-
     def Application.setup
       trap('INT') do
         puts "Exiting (user interrupt).."
@@ -30,7 +30,7 @@ module Jurandir
       what_tool = nil
       
       main_parser = OptionParser.new do |opts|
-        opts.banner = "Usage: ruby lolicon.rb [options]"
+        opts.banner = "Usage: ruby #{$0} [options]"
         
         opts.on("--tool <tool>", "What tool will be used") do |tool|
           options[:tool] = tool
@@ -49,7 +49,7 @@ module Jurandir
         
         opts.on("--tools", "Show available tools") do
           Jurandir::modules.keys.each { |key|
-            puts key
+            puts "#{key}\t#{Jurandir::modules[key].desc.simple}"
           }
           exit
         end
