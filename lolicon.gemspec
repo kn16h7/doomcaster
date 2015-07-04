@@ -1,7 +1,7 @@
 
 Gem::Specification.new do |s|
   s.name = 'lolicon.rb'
-  s.version = '1.6'
+  s.version = '1.7-BETA'
   s.summary = 'Lolicon Squad oficial Ruby script.'
   s.description = %q{Well, I think the origin of this script auto-explain its purpose, yeah?}
   s.authors = ['SuperSenpai', 'PrestusHood']

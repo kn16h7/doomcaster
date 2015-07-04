@@ -1,16 +1,19 @@
 module Jurandir
   module Modules
     require 'google-search'
+    require 'net/http'
     
     class DorkScanner < Jurandir::JurandirModule
       def initialize
         super('dork-scanner', {})
+        @vuln_sites = []
       end
 
       def desc
         Jurandir::ModuleDesc.new(
                                  %q{
-A tool to look for vulnerable sites based on a Google Dork.}, %Q{
+A tool to look for vulnerable sites based on a Google Dork
+                                 }, %Q{
 
                                  })
       end
@@ -86,7 +89,8 @@ A tool to look for vulnerable sites based on a Google Dork.}, %Q{
 
       def run
         @parser.parse!
-
+        @vuln_sites = []
+        
         list_path = unless self.options[:list_path]
                       ENV['HOME'] + "/.lolicon.rb/wordlists/dork-lists"
                     else
@@ -101,7 +105,6 @@ A tool to look for vulnerable sites based on a Google Dork.}, %Q{
         complete_dork = domain + sanitized_dork
 
         puts " [*] The complete dork is: #{complete_dork}".green.bold
-
         amount = nil
         loop do
           begin
@@ -113,18 +116,100 @@ A tool to look for vulnerable sites based on a Google Dork.}, %Q{
             puts "Invalid Input!".bg_red
           end
         end
+        
         start_dork_scan(complete_dork, amount)
+      end
+
+      def load_sql_errors_list
+        sql_list_file = ENV['HOME'] + '/.lolicon.rb/wordlists/sql-errors-list'
+        retval = []
+        file = File.open(sql_list_file)
+        begin
+          file.each_line do |line|
+            retval << line
+          end
+        rescue
+          file.close
+        end
+        retval
+      end
+
+      def check_sql_error(page_body)
+        errors = load_sql_errors_list
+
+        errors.each { |error|
+          return true if Regexp.new(error).match(page_body)
+        }
+        
+        false
+      end
+
+      def process_res(uri)
+        puts " [*] Processing #{uri}...".red.bold
+        puts " [*] Verifying if #{uri} is ok...".red.bold
+        http_res = Net::HTTP.get_response(URI.parse(uri))
+
+        if http_res.code =~ /200/
+          puts " [+] #{uri} is ok!".green.bold
+          puts " [*] Jurandir will check for vulnerability".red.bold
+
+          obj_uri = URI.parse(uri)
+          obj_uri.query = obj_uri.query + '\''
+          http_res = Net::HTTP.get_response(obj_uri)
+
+          if check_sql_error(http_res.body)
+            puts " [+] #{uri} seems to be vulnerable!".green.bold
+            @vuln_sites << uri
+            return true
+          else
+            puts " [-] #{uri} seems not to be vulnerable.".yellow.bold
+            return false
+          end
+        elsif http_res.code =~ /302/
+          redirection = if http_res['Location'] =~ /^http:/
+                          http_res['Location']
+                        else
+                          uri + http_res['Location']
+                        end
+
+          puts "Got a redirection to: #{redirection}".bold
+          loop do
+            puts "Do you want to follow it? [y/n]: ".bold
+            answer = gets.chomp
+
+            if answer =~ /y/
+              process_res(redirection)
+              break
+            elsif answer =~ /n/
+              puts " [*] Ok.".bold.red
+              break
+            else
+              puts "Invalid answer!".bg_red
+            end
+          end
+        elsif http_res.code =~ /404/
+          puts " [-] #{uri} is not ok: received a 404".bg_red
+        end
       end
 
       def start_dork_scan(dork, num = 1)
         puts " [*] Starting dork scanning...".green.bold
         query = "inurl:" + dork
-
+        domain_cache = []
+        
         #WARNING: DEBUG!
         count = 0
-        Google::Search::Web.new(:query => query).each do |res|
-          count += 1
-          puts res.uri
+        Google::Search::Web.new(:query => query, :language => :pt).each do |res|
+          puts "\n"
+
+          uri = URI.parse(res.uri)
+          next if domain_cache.include?(uri.host)
+          
+          domain_cache << uri.host
+          if process_res(res.uri)
+            count += 1
+          end
+          
           break if count == num
         end
 
