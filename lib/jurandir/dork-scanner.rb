@@ -31,6 +31,7 @@ A tool to look for vulnerable sites based on a Google Dork.}, %Q{
         
         list = nil
         what_dork = nil
+        custom = false
         
         loop do
           begin
@@ -39,12 +40,13 @@ A tool to look for vulnerable sites based on a Google Dork.}, %Q{
 
             if choice == '*'
               what_dork = custom_dork
+              custom = true
               break
             end
             
-            idx = Integer(gets.chomp)
+            idx = Integer(choice)
             
-            unless lists[idex]
+            unless lists[idx]
               puts " Unknown list!".bg_red
             else
               list = lists[idx]
@@ -55,26 +57,28 @@ A tool to look for vulnerable sites based on a Google Dork.}, %Q{
           end
         end
 
-        puts " [*] Ok! Loading wordlist.".red.bold
-        in_memory_list = load_wordlist(list_path, list)
+        unless custom
+          puts " [*] Ok! Loading wordlist.".red.bold
+          in_memory_list = load_wordlist(list_path, list)
 
-        loop do
-          puts " [*] Selecting a random dork".red.bold
+          loop do
+            puts " [*] Selecting a random dork".red.bold
 
-          size = in_memory_list.length
-          what_dork = in_memory_list[Integer(rand(size))]
+            size = in_memory_list.length
+            what_dork = in_memory_list[Integer(rand(size))]
         
-          puts " [*] Selected dork is #{what_dork}".green.bold
+            puts " [*] Selected dork is #{what_dork}".green.bold
 
-          print "Do you want to use this dork? [y/n] ".bold
-          answer = gets.chomp
+            print "Do you want to use this dork? [y/n] ".bold
+            answer = gets.chomp
 
-          if answer =~ /y/
-            break
-          elsif anser =~ /n/
-            next
-          else
-            puts "Invalid answer! Jurandir will consider this as a no =)".bg_red
+            if answer =~ /y/
+              break
+            elsif answer =~ /n/
+              next
+            else
+              puts "Invalid answer! Jurandir will consider this as a no =)".bg_red
+            end
           end
         end
         what_dork
@@ -90,11 +94,10 @@ A tool to look for vulnerable sites based on a Google Dork.}, %Q{
                     end
         
         puts " [*] Welcome to the Jurandir Dork Scanner!".green.bold
+        
         domain = get_domain
         dork = get_dork(list_path)
-
         sanitized_dork = sanitize_dork(dork)
-
         complete_dork = domain + sanitized_dork
 
         puts " [*] The complete dork is: #{complete_dork}".green.bold
@@ -103,8 +106,9 @@ A tool to look for vulnerable sites based on a Google Dork.}, %Q{
         loop do
           begin
             puts "How many sites do you want to check for vulnerabilities?".bold
-            puts "--> ".bold
+            print "--> ".bold
             amount = Integer(gets.chomp)
+            break
           rescue ArgumentError
             puts "Invalid Input!".bg_red
           end
@@ -113,13 +117,18 @@ A tool to look for vulnerable sites based on a Google Dork.}, %Q{
       end
 
       def start_dork_scan(dork, num = 1)
-        puts " [*] Starting dork scanning..."
+        puts " [*] Starting dork scanning...".green.bold
         query = "inurl:" + dork
 
         #WARNING: DEBUG!
-        Google::Search::Web.new(:query => query) do |search|
-          puts "URI: #{search.get_uri}"
+        count = 0
+        Google::Search::Web.new(:query => query).each do |res|
+          count += 1
+          puts res.uri
+          break if count == num
         end
+
+        puts count
       end
 
       def sanitize_dork(dork)
@@ -130,7 +139,7 @@ A tool to look for vulnerable sites based on a Google Dork.}, %Q{
       end
         
       def custom_dork
-        puts " [*] Digit your custom dork:"
+        print " [*] Digit your custom dork: ".red.bold
         dork = gets.chomp
         dork
       end
@@ -139,13 +148,32 @@ A tool to look for vulnerable sites based on a Google Dork.}, %Q{
         completed = false
         Thread.new  do
           until completed
-            print '.'
+            print '.'.bold
           end
         end
 
-        retval = File.open(list_path + '/' + list, 'r')
-          .each_line.split(%r{\n})
+        retval = []
+        
+        Dir.foreach(list_path).select { |entry|
+          !File.directory?(entry)
+        }.each do |file|
+          name = File.open(File.expand_path(file, list_path), "r").readline
+          next if !(name =~ /NAME:/)
+          name = File.open(File.expand_path(file, list_path), "r").readline
+            .split(" ").drop(1).join(" ")
+
+          if name == list
+            File.open(list_path + '/' + file, 'r')
+              .each_line { |line|
+              next if line =~ /NAME:/
+              retval << line
+            }
+            break
+          end
+        end
+
         completed = true
+        puts '.'.bold
         retval
       end
 
