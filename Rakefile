@@ -23,5 +23,5 @@ task :clean do
   File.delete("lolicon-#{Jurandir::VERSION}.zip")
   Dir.chdir('production')
   File.delete("lolicon.rb-#{Jurandir::VERSION}.gem")
-  FileUtils.rm_r('lists')
+  FileUtils.rm_r('wordlists')
 end
