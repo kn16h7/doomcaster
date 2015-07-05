@@ -6,7 +6,7 @@ require 'jurandir/dork-scanner'
 require 'jurandir/errors'
 
 module Jurandir
-  VERSION = '1.6'
+  VERSION = '1.7.pre.BETA'
 
   require 'optparse'
   

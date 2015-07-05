@@ -11,9 +11,8 @@ module Jurandir
 
       def desc
         Jurandir::ModuleDesc.new(
-                                 %q{
-A tool to look for vulnerable sites based on a Google Dork
-                                 }, %Q{
+                                 %q{A tool to look for vulnerable sites based on a Google Dork},
+                                 %Q{
 
                                  })
       end
@@ -26,7 +25,7 @@ A tool to look for vulnerable sites based on a Google Dork
       def get_dork(list_path)
         puts " [*] Select the dork list you want to use, the available lists are:".red.bold
         lists = get_dork_lists(list_path)
-
+        puts ""
         lists.each_index { |idx|
           puts " [#{idx}] #{lists[idx]}".red.bold
         }
@@ -136,17 +135,18 @@ A tool to look for vulnerable sites based on a Google Dork
 
       def check_sql_error(page_body)
         errors = load_sql_errors_list
-
-        errors.each { |error|
-          return true if Regexp.new(error).match(page_body)
+        retval = false
+        
+        errors.each { |error|          
+          retval = true if page_body =~ Regexp.new(error.chomp)
         }
         
-        false
+        retval
       end
 
       def process_res(uri)
         puts " [*] Processing #{uri}...".red.bold
-        puts " [*] Verifying if #{uri} is ok...".red.bold
+        puts " [*] Verifying if #{uri} responds".red.bold
         http_res = Net::HTTP.get_response(URI.parse(uri))
 
         if http_res.code =~ /200/
@@ -154,7 +154,15 @@ A tool to look for vulnerable sites based on a Google Dork
           puts " [*] Jurandir will check for vulnerability".red.bold
 
           obj_uri = URI.parse(uri)
-          obj_uri.query = obj_uri.query + '\''
+
+          if obj_uri.query
+            obj_uri.query = obj_uri.query + '\''
+          else
+            puts " [-] #{obj_uri} lacks of a parameter to check vulnerability".bold.yellow
+            puts " [-] Jurandir will consider this seems not vulnerable".bold.yellow
+            return false
+          end
+          
           http_res = Net::HTTP.get_response(obj_uri)
 
           if check_sql_error(http_res.body)
@@ -165,7 +173,8 @@ A tool to look for vulnerable sites based on a Google Dork
             puts " [-] #{uri} seems not to be vulnerable.".yellow.bold
             return false
           end
-        elsif http_res.code =~ /302/
+
+        elsif http_res.code =~ /301/ || http_res.code =~ /302/
           redirection = if http_res['Location'] =~ /^http:/
                           http_res['Location']
                         else
@@ -189,6 +198,8 @@ A tool to look for vulnerable sites based on a Google Dork
           end
         elsif http_res.code =~ /404/
           puts " [-] #{uri} is not ok: received a 404".bg_red
+        else
+          puts " [-] Jurandir received an unhandable HTTP status: #{http_res.code}".yellow.bold
         end
       end
 
@@ -199,7 +210,7 @@ A tool to look for vulnerable sites based on a Google Dork
         
         #WARNING: DEBUG!
         count = 0
-        Google::Search::Web.new(:query => query, :language => :pt).each do |res|
+        Google::Search::Web.new(:query => query).each do |res|
           puts "\n"
 
           uri = URI.parse(res.uri)
@@ -213,7 +224,11 @@ A tool to look for vulnerable sites based on a Google Dork
           break if count == num
         end
 
-        puts count
+        puts " [*] Scanning complete, #{count} of sites that seem vulnerable were found, as you asked.".red.bold
+        puts " [*] The sites are:".red.bold
+        @vuln_sites.each { |site|
+          puts " [+] #{site}".red.bold
+        }
       end
 
       def sanitize_dork(dork)

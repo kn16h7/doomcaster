@@ -69,8 +69,7 @@ That's all. Greetings from SuperSenpai!
                     end
         
         unless site
-          print " Enter the website you want to scan \n".red.bold
-          print" e.g.: www.domaine.com or www.domaine.com/path\n".red.bold
+          puts " [*] Enter the website you want to scan (e.g.: www.domaine.com or www.domaine.com/path\)".red.bold
           print" --> ".red.bold
           site = gets.chomp
         end
@@ -78,10 +77,10 @@ That's all. Greetings from SuperSenpai!
         codes = get_langs(list_path)
         
         unless lang
-          print "\n\n"
-          print " Enter the coding language of the website \n".red.bold
-          print " If you don't know the launguage used in the coding then simply type ** any ** \n".red.bold
-          print " The available languages are:\n".red.bold
+          print "\n"
+          puts " [*] Enter the coding language of the website".red.bold
+          puts " [*] If you don't know the launguage used in the coding then simply type ** any **".red.bold
+          puts "The available languages are:\n".red.bold
 
           codes.each_index { |idx|
             puts " [#{idx}] #{codes[idx]}".red.bold
@@ -107,9 +106,9 @@ That's all. Greetings from SuperSenpai!
         site = "http://" + site if site !~ /^http:/
         site = site + "/" if site !~ /\/$/
         
-        print "\n->The website: #{site}\n".green
-        print "->Source of the website: #{lang}\n".green
-        print "->Scan of the admin control panel is progressing...\n\n\n".green
+        puts "\n->The website: #{site}".green
+        puts "->Source of the website: #{lang}".green
+        print "->Scan of the admin control panel is progressing...\n\n".green
         search_generic(site, list_path + "/#{lang}_list")
       end
 
@@ -172,12 +171,12 @@ That's all. Greetings from SuperSenpai!
             next if line =~ /^LANGUAGE:/
             
             complete_uri = site + line
-            print "\n [*] Trying: #{complete_uri}".green.bold
+            puts " [*] Trying: #{complete_uri}".bold
             
             res = Net::HTTP.get_response(URI(complete_uri))
             
             if res.code =~ /404/
-              print " [-] Not Found <- #{complete_uri}\n".red.bold;
+              puts " [-] Not Found <- #{complete_uri}".red.bold ;
               next
             elsif res.code =~ /302/
               location = res['Location']
@@ -188,29 +187,28 @@ That's all. Greetings from SuperSenpai!
                           complete_uri.chomp + location
                         end
               
-              print %Q{\n [*] Possible admin page found in: #{new_uri}. But jurandir will check!\n}.bold
-
+              puts " [*] Possible admin page found in: #{new_uri}. But jurandir will check!".bold
               new_res =  Net::HTTP.get_response(URI(new_uri))
               
               if check_site(new_res)
-                print "\n [+] Found -> #{new_uri}\n".green.bold
-                print "\n [+] But this admin page is actually in another place\n".green.bold
-                print "\n [+] Congratulation, this admin login page is working.\n\n Good luck from SuperSenpai.\n\n".green.bold
+                puts " [+] Found -> #{new_uri}\n".green.bold
+                puts " [+] But this admin page is actually in another place\n".green.bold
+                puts " [+] Congratulation, this admin login page is working.\n\n Good luck from SuperSenpai.\n\n".green.bold
                 found = true
               else
-                print " [-] False positive: #{new_uri} is not a valid admin page.".bg_red
+                puts " [-] False positive: #{new_uri} is not a valid admin page.".bold.yellow
                 next
               end
             elsif res.code =~ /200/ && check_site(res)
-              print "\n [+] Found -> #{complete_uri}\n".green.bold
-              print " [+] Congratulation, this admin login page is working.\n Good luck from SuperSenpai.\n".green.bold
+              puts " [+] Found -> #{complete_uri}\n".green.bold
+              puts " [+] Congratulation, this admin login page is working.\n Good luck from SuperSenpai.\n".green.bold
               found = true
             else
-              print " [-] Not Found <- #{complete_uri}\n".red
+              puts " [-] Not Found <- #{complete_uri}\n".red
             end
 
             if found
-              print " Desired page found. Do you want to continue?[s/n]: ".bold
+              puts " Desired page found. Do you want to continue?[s/n]: ".bold
               answer = gets.chomp
               
               if answer =~ /s/
@@ -230,7 +228,12 @@ That's all. Greetings from SuperSenpai!
         }.select { |entry|
           !File.readable?(entry)
         }.select { |file|
-          File.open(list_path + '/' + file, "r").readline =~ /LANGUAGE:/
+          file = File.open(list_path + '/' + file, "r")
+          begin
+            file.readline =~ /LANGUAGE:/
+          ensure
+            file.close
+          end
         }.collect { |file|
           File.open(list_path + '/' + file, "r").readline.split(" ")[1]
         }
