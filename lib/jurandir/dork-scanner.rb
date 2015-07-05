@@ -1,3 +1,4 @@
+
 module Jurandir
   module Modules
     require 'google-search'
@@ -13,7 +14,21 @@ module Jurandir
         Jurandir::ModuleDesc.new(
                                  %q{A tool to look for vulnerable sites based on a Google Dork},
                                  %Q{
+This tool takes: A random dork from a wordlist or a custom dork provided by
+the user and a domain. Then, it uses it to look for sites vulnerable to SQL
+Injection on Google. The user says how many sites he/she wants and this tool
+will look for as many sites as possible and deliver them to the user.
 
+LISTS:
+You can create you own list of dorks, to this, go to the directory:
+/home/<your-home>/.lolicon.rb/wordlists/dork-lists and create a new file with
+the first line as:
+NAME: <name of your dork list>
+
+Then just put the dorks, one per line.
+
+Doomcaster comes with a default dork lists called Super Word List, with a total
+of 28605 dorks.
                                  })
       end
 
@@ -96,7 +111,7 @@ module Jurandir
                       self.options[:list_path]
                     end
         
-        puts " [*] Welcome to the Jurandir Dork Scanner!".green.bold
+        puts " [*] Welcome to the Jurandir Dork Scanner!".red.bold
         
         domain = get_domain
         dork = get_dork(list_path)
@@ -144,26 +159,33 @@ module Jurandir
         retval
       end
 
+      def vuln_query(query)
+        chunks = query.split("&")
+        chunks[0] << '\''
+      end
+
       def process_res(uri)
         puts " [*] Processing #{uri}...".red.bold
         puts " [*] Verifying if #{uri} responds".red.bold
-        http_res = Net::HTTP.get_response(URI.parse(uri))
+
+        if uri.query
+          uri.query = vuln_query(uri.query)
+        else
+          puts " [-] #{uri} lacks of a parameter to check vulnerability".bold.yellow
+          puts " [-] Jurandir will consider this site seems not vulnerable".bold.yellow
+          return false
+        end
+
+        http_handle = Net::HTTP.new(uri.host, uri.port)
+        http_handle.read_timeout = 10
+        req = Net::HTTP::Get.new(uri.path + '?' + uri.query)
+        http_res = http_handle.request(req)
 
         if http_res.code =~ /200/
           puts " [+] #{uri} is ok!".green.bold
           puts " [*] Jurandir will check for vulnerability".red.bold
-
-          obj_uri = URI.parse(uri)
-
-          if obj_uri.query
-            obj_uri.query = obj_uri.query + '\''
-          else
-            puts " [-] #{obj_uri} lacks of a parameter to check vulnerability".bold.yellow
-            puts " [-] Jurandir will consider this seems not vulnerable".bold.yellow
-            return false
-          end
           
-          http_res = Net::HTTP.get_response(obj_uri)
+          http_res = Net::HTTP.get_response(uri)
 
           if check_sql_error(http_res.body)
             puts " [+] #{uri} seems to be vulnerable!".green.bold
@@ -217,7 +239,7 @@ module Jurandir
           next if domain_cache.include?(uri.host)
           
           domain_cache << uri.host
-          if process_res(res.uri)
+          if process_res(URI.parse(res.uri))
             count += 1
           end
           
@@ -299,10 +321,21 @@ module Jurandir
         }.select {  |entry|
           !File.readable?(entry)
         }.select { |file|
-          File.open(list_path + '/' + file, 'r').readline =~ /NAME:/
+          file = File.open(list_path + '/' + file, 'r')
+          begin
+            file.readline =~ /NAME:/
+          rescue
+          ensure
+            file.close
+          end
         }.collect { |file|
-          File.open(list_path + '/' + file, 'r')
-            .readline.split(" ").drop(1).join(" ")
+          file  = File.open(list_path + '/' + file, 'r')
+          begin
+            file.readline.split(" ").drop(1).join(" ")
+          rescue
+          ensure
+            file.close
+          end
         }
       end
     end
