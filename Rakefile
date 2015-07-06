@@ -1,6 +1,4 @@
-$: << File.expand_path('lib')
-
-require 'doomcaster'
+VERSION = '1.8.1'
 
 task default: ['test', 'package']
 
@@ -12,15 +10,15 @@ end
 desc "Build the project in a distributable zip."
 task :package do
   sh 'gem build doomcaster.gemspec'
-  mv("doomcaster-#{DoomCaster::VERSION}.gem", 'production')
+  mv("doomcaster-#{VERSION}.gem", 'production')
   copy_entry('wordlists/', 'production/wordlists')
-  sh "zip -r doomcaster-#{DoomCaster::VERSION}.zip production/"
+  sh "zip -r doomcaster-#{VERSION}.zip production/"
 end
 
 desc "Delete all production files."
 task :clean do
-  File.delete("doomcaster-#{DoomCaster::VERSION}.zip")
+  File.delete("doomcaster-#{VERSION}.zip")
   Dir.chdir('production')
-  File.delete("doomcaster-#{DoomCaster::VERSION}.gem")
+  File.delete("doomcaster-#{VERSION}.gem")
   rm_r('wordlists')
 end
