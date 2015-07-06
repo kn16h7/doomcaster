@@ -1,89 +1,67 @@
-module Jurandir
+module DoomCaster
   class String
     def bg_red
       self.colorize(:background => :red, :color => :white)
     end
   end
   
-  module Modules
-    class AdminFinder < Jurandir::JurandirModule
+  module Tools
+    class AdminFinder < DoomCaster::DoomCasterTool
       def initialize
         super('admin-finder', {})
       end
 
       def desc
-        Jurandir::ModuleDesc.new(
+        DoomCaster::ToolDesc.new(
                                  %q{A tool for find the administrative page in websites.
                                  }, %Q{
-This tool try to find the admin page of an website
-by brute force, based on a list and in some previous
-conditions. This tool will ask you for a site and
-an language for select a list and start.
+This tool try to find the admin page of an website by brute force, based on a
+list and in some previous conditions. This tool will ask you for a site and an
+list for select a list and start.
 
-The wordlists used are inside:/home/your-home/.lolicon.rb/wordlists/admin-lists
-The default path where this tool will look for lists
-is the above path. But you can specify an alternative
-path by the command line option: --list-path.
+You can create your own list of possible admin pages. For this, go to:
+/home/<your-home>/.doomcaster.rb/wordlists/admin-lists and inside this directory
+create a new file where the first line MUST be:
 
-LISTS:
-To add a new possible admin page, just go to the
-path where the wordlists are, edit the list you want
-and append the piece of URL to the final of the list.
-
-If you want to create a new list for a new language,
-create a new file inside the path with the name:
-<language>_list. For example:
-
-A list for the php language:
-php_list
-
-The first line of the file must specify the language
-in this format:
-LANGUAGE: <language>
-
-For example:
-
-php_list:
-LANGUAGE: php
-/admin
-/adm
-/admin.php
+NAME: name of your list
 ...
 
-It's important to you to do the things alright, otherwise
-the tool will not work!
-
-That's all. Greetings from SuperSenpai!
+Then just fill the file with the possible pages, one per line.
                                  })
       end
 
       def run
         @parser.parse!
         site = self.options[:host]
-        lang = self.options[:lang]
+        list = self.options[:list]
 
         list_path = unless self.options[:list_path]
-                      ENV['HOME'] + "/.lolicon.rb/wordlists/admin-lists"
-                    else
+                      ENV['HOME'] + "/.doomcaster/wordlists/admin-lists"
+                     else
                       self.options[:list_path]
                     end
+
+        lists = get_lists(list_path)
         
         unless site
           puts " [*] Enter the website you want to scan (e.g.: www.domaine.com or www.domaine.com/path\)".red.bold
           print" --> ".red.bold
           site = gets.chomp
         end
-
-        codes = get_langs(list_path)
         
-        unless lang
+        unless list
           print "\n"
-          puts " [*] Enter the coding language of the website".red.bold
-          puts " [*] If you don't know the launguage used in the coding then simply type ** any **".red.bold
-          puts "The available languages are:\n".red.bold
+          puts " [*] Enter the list you want to use".red.bold
 
-          codes.each_index { |idx|
-            puts " [#{idx}] #{codes[idx]}".red.bold
+          if lists.empty?
+            puts " [-] Cannot scan site: No list available".bg_red
+            return
+          end
+          
+          puts " [*] The available lists are:\n".red.bold
+
+          lists.each_index { |idx|
+            puts " [#{idx}] #{lists[idx]}".red.bold
           }
 
           loop do
@@ -91,15 +69,20 @@ That's all. Greetings from SuperSenpai!
               print " --> ".red.bold
               idx = Integer(gets.chomp)
 
-              unless codes[idx]
-                puts " Unknown language!".bg_red
+              unless lists[idx]
+                puts " Unknown list!".bg_red
               else
-                lang = codes[idx]
+                list = lists[idx]
                 break
               end
             rescue ArgumentError
               puts " Invalid input!".bg_red
             end
+          end
+        else
+          unless lists.include?(self.options[:list])
+            puts " [-] Cannot scan site: The list you have specified with --list is unknown".bg_red
+            return
           end
         end
         
@@ -107,23 +90,23 @@ That's all. Greetings from SuperSenpai!
         site = site + "/" if site !~ /\/$/
         
         puts "\n->The website: #{site}".green
-        puts "->Source of the website: #{lang}".green
-        print "->Scan of the admin control panel is progressing...\n\n".green
-        search_generic(site, list_path + "/#{lang}_list")
+        puts "->List to be used: #{list}".green
+        puts "->Scan of the admin control panel is progressing...\n".green
+        search_generic(site, list_path + "/#{list}_list")
       end
 
       def parse_opts(parser)
         @parser = parser
 
         @parser.separator ""
-        @parser.separator "admin-finder tool specific options:\n"
+        @parser.separator "admin-finder options:\n"
         
         @parser.on("--host <host>", "The target host to be scanned") do |host|
           self.options[:host] = host
         end
 
-        @parser.on("--lang <lang>", "The language of the host's back-end") do |lang|
-          self.options[:lang] = lang
+        @parser.on("--list <list>", "The list to be used") do |list|
+          self.options[:list] = list
         end
 
         @parser.on("--list-path <path>", "The path where to look up for lists") do |path|
@@ -168,7 +151,7 @@ That's all. Greetings from SuperSenpai!
         
         File.open(list_file) do |f|
           f.each_line do |line|
-            next if line =~ /^LANGUAGE:/
+            next if line =~ /^NAME:/
             
             complete_uri = site + line
             puts " [*] Trying: #{complete_uri}".bold
@@ -208,13 +191,13 @@ That's all. Greetings from SuperSenpai!
             end
 
             if found
-              puts " Desired page found. Do you want to continue?[s/n]: ".bold
+              print "Desired page found. Do you want to continue?[s/n]: ".bold
               answer = gets.chomp
               
               if answer =~ /s/
-                puts " Ok...".green.bold
+                puts "Ok...".green.bold
               elsif answer =~ /n/
-                puts " Ok!".green.bold
+                puts "Ok!".green.bold
                 break
               end          
             end
@@ -222,7 +205,7 @@ That's all. Greetings from SuperSenpai!
         end
       end
 
-      def get_langs(list_path)
+      def get_lists(list_path)
         Dir.foreach(list_path).select { |entry|
           !File.directory?(entry)
         }.select { |entry|
@@ -230,18 +213,20 @@ That's all. Greetings from SuperSenpai!
         }.select { |file|
           file = File.open(list_path + '/' + file, "r")
           begin
-            file.readline =~ /LANGUAGE:/
+            file.readline =~ /NAME:/
           ensure
             file.close
           end
         }.collect { |file|
-          File.open(list_path + '/' + file, "r").readline.split(" ")[1]
+          file = File.open(list_path + '/' + file, "r")
+          begin
+            file.readline.split(" ")[1]
+          rescue
+          ensure
+            file.close
+          end
         }
       end
-
-      def print_langs(list_path)
-        get_langs(list_path).each { |lang| puts lang }
-      end      
     end
   end
 end

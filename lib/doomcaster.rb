@@ -1,12 +1,12 @@
 $: << File.expand_path(File.dirname(__FILE__))
 
-require 'jurandir/common'
-require 'jurandir/admin-finder'
-require 'jurandir/dork-scanner'
-require 'jurandir/errors'
+require 'doomcaster/common'
+require 'doomcaster/admin-finder'
+require 'doomcaster/dork-scanner'
+require 'doomcaster/errors'
 
-module Jurandir
-  VERSION = '1.7.pre.BETA'
+module DoomCaster
+  VERSION = '1.8'
 
   require 'optparse'
   
@@ -19,7 +19,7 @@ module Jurandir
     end
     
     def Application.run
-      Jurandir::register_modules
+      DoomCaster::register_modules
       setup
 
       options = {
@@ -36,20 +36,20 @@ module Jurandir
           options[:tool] = tool
 
           begin
-            what_tool = Jurandir::get_module(options[:tool], options[:tool_opts])
+            what_tool = DoomCaster::get_module(options[:tool], options[:tool_opts])
             what_tool.parse_opts(main_parser)
           rescue UnknownModuleError
             unless options[:tool]
-              Jurandir::die "ERROR: No tool specified!".bg_red
+              DoomCaster::die "ERROR: No tool specified!".bg_red
             else
-              Jurandir::die "ERROR: Unknown tool: #{options[:tool]}".bg_red
+              DoomCaster::die "ERROR: Unknown tool: #{options[:tool]}".bg_red
             end
           end
         end
         
         opts.on("--tools", "Show available tools") do
-          Jurandir::modules.keys.each { |key|
-            puts "#{key}\t#{Jurandir::modules[key].desc.simple}"
+          DoomCaster::modules.keys.each { |key|
+            puts "#{key}\t#{DoomCaster::modules[key].desc.simple}"
           }
           exit
         end
@@ -63,10 +63,10 @@ module Jurandir
       main_parser.parse!
 
       unless what_tool
-        Jurandir::die "ERROR: No tool given!".bg_red
+        DoomCaster::die "ERROR: No tool given!".bg_red
       end
       
-      Jurandir::banner      
+      DoomCaster::banner      
       what_tool.run
     end
   end

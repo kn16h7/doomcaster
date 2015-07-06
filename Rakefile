@@ -1,7 +1,7 @@
 $: << File.expand_path('lib')
 
 require 'fileutils'
-require 'jurandir'
+require 'doomcaster'
 
 task default: ['test', 'package']
 
@@ -12,16 +12,16 @@ end
 
 desc "Build the project in a distributable zip."
 task :package do
-  sh 'gem build lolicon.gemspec'
-  FileUtils.mv("lolicon.rb-#{Jurandir::VERSION}.gem", 'production')
+  sh 'gem build doomcaster.gemspec'
+  FileUtils.mv("doomcaster-#{Jurandir::VERSION}.gem", 'production')
   FileUtils.copy_entry('wordlists/', 'production/wordlists')
-  sh "zip -r lolicon-#{Jurandir::VERSION}.zip production/"
+  sh "zip -r doomcaster-#{Jurandir::VERSION}.zip production/"
 end
 
 desc "Delete all production files."
 task :clean do
-  File.delete("lolicon-#{Jurandir::VERSION}.zip")
+  File.delete("doomcaster-#{Jurandir::VERSION}.zip")
   Dir.chdir('production')
-  File.delete("lolicon.rb-#{Jurandir::VERSION}.gem")
+  File.delete("doomcaster-#{Jurandir::VERSION}.gem")
   FileUtils.rm_r('wordlists')
 end

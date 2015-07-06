@@ -1,17 +1,16 @@
-
-module Jurandir
-  module Modules
+module DoomCaster
+  module Tools
     require 'google-search'
     require 'net/http'
     
-    class DorkScanner < Jurandir::JurandirModule
+    class DorkScanner < DoomCaster::DoomCasterTool
       def initialize
         super('dork-scanner', {})
         @vuln_sites = []
       end
 
       def desc
-        Jurandir::ModuleDesc.new(
+        DoomCaster::ToolDesc.new(
                                  %q{A tool to look for vulnerable sites based on a Google Dork},
                                  %Q{
 This tool takes: A random dork from a wordlist or a custom dork provided by
@@ -94,7 +93,7 @@ of 28605 dorks.
             elsif answer =~ /n/
               next
             else
-              puts "Invalid answer! Jurandir will consider this as a no =)".bg_red
+              puts "Invalid answer! DoomCaster will consider this as a no =)".bg_red
             end
           end
         end
@@ -111,7 +110,7 @@ of 28605 dorks.
                       self.options[:list_path]
                     end
         
-        puts " [*] Welcome to the Jurandir Dork Scanner!".red.bold
+        puts " [*] Welcome to the DoomCaster Dork Scanner!".red.bold
         
         domain = get_domain
         dork = get_dork(list_path)
@@ -162,37 +161,54 @@ of 28605 dorks.
       def vuln_query(query)
         chunks = query.split("&")
         chunks[0] << '\''
+        chunks.join("&")
       end
 
       def process_res(uri)
         puts " [*] Processing #{uri}...".red.bold
-        puts " [*] Verifying if #{uri} responds".red.bold
+        puts " [*] Verifying if #{uri} is alright...".red.bold
 
-        if uri.query
-          uri.query = vuln_query(uri.query)
-        else
+        unless uri.query
           puts " [-] #{uri} lacks of a parameter to check vulnerability".bold.yellow
-          puts " [-] Jurandir will consider this site seems not vulnerable".bold.yellow
+          puts " [-] DoomCaster will consider this site seems not vulnerable".bold.yellow
           return false
         end
 
         http_handle = Net::HTTP.new(uri.host, uri.port)
         http_handle.read_timeout = 10
         req = Net::HTTP::Get.new(uri.path + '?' + uri.query)
-        http_res = http_handle.request(req)
+
+        http_res = nil
+        begin
+          http_res = http_handle.request(req)
+        rescue Errno::ETIMEDOUT
+          puts " [-] Connection to #{uri} timed out, going to the next".bg_red
+          return false
+        rescue Errno::ECONNREFUSED
+          puts " [-] #{uri} refused our connection".bg_red
+          return false
+        rescue Net::HTTPBadResponse => e
+          puts " [-] Server gave to us an bad response: #{e}, going to the next".bold.yellow
+          return false
+        rescue SocketError => e
+          puts " [-] Network error while trying to test (#{e}), going to the next".bg_red
+          return false
+        end
 
         if http_res.code =~ /200/
           puts " [+] #{uri} is ok!".green.bold
-          puts " [*] Jurandir will check for vulnerability".red.bold
-          
-          http_res = Net::HTTP.get_response(uri)
+          puts " [*] DoomCaster will check for vulnerability".red.bold
+
+          vuln_uri = uri.clone
+          vuln_uri.query = vuln_query(uri.query)
+          http_res = Net::HTTP.get_response(vuln_uri)
 
           if check_sql_error(http_res.body)
-            puts " [+] #{uri} seems to be vulnerable!".green.bold
+            puts " [+] #{uri} seems vulnerable!".green.bold
             @vuln_sites << uri
             return true
           else
-            puts " [-] #{uri} seems not to be vulnerable.".yellow.bold
+            puts " [-] #{uri} seems not vulnerable.".yellow.bold
             return false
           end
 
@@ -209,7 +225,8 @@ of 28605 dorks.
             answer = gets.chomp
 
             if answer =~ /y/
-              process_res(redirection)
+              encoded_redirection = URI.escape(redirection.to_s)
+              process_res(URI.parse(encoded_redirection))
               break
             elsif answer =~ /n/
               puts " [*] Ok.".bold.red
@@ -221,7 +238,7 @@ of 28605 dorks.
         elsif http_res.code =~ /404/
           puts " [-] #{uri} is not ok: received a 404".bg_red
         else
-          puts " [-] Jurandir received an unhandable HTTP status: #{http_res.code}".yellow.bold
+          puts " [-] DoomCaster received an unhandable HTTP status: #{http_res.code}".yellow.bold
         end
       end
 
@@ -233,23 +250,24 @@ of 28605 dorks.
         #WARNING: DEBUG!
         count = 0
         Google::Search::Web.new(:query => query).each do |res|
-          puts "\n"
-
           uri = URI.parse(res.uri)
           next if domain_cache.include?(uri.host)
           
+          puts "\n"
+
           domain_cache << uri.host
-          if process_res(URI.parse(res.uri))
+          encoded_uri = URI.encode(res.uri)
+          if process_res(URI.parse(encoded_uri))
             count += 1
           end
           
           break if count == num
         end
-
-        puts " [*] Scanning complete, #{count} of sites that seem vulnerable were found, as you asked.".red.bold
-        puts " [*] The sites are:".red.bold
+        
+        puts "\n [*] Scanning complete, #{count} of sites that seem vulnerable were found, as you asked.".green.bold
+        puts " [*] The sites are:".green.bold
         @vuln_sites.each { |site|
-          puts " [+] #{site}".red.bold
+          puts " [+] #{site}".green.bold
         }
       end
 
@@ -271,6 +289,7 @@ of 28605 dorks.
         Thread.new  do
           until completed
             print '.'.bold
+            sleep 1
           end
         end
 
@@ -285,11 +304,10 @@ of 28605 dorks.
             .split(" ").drop(1).join(" ")
 
           if name == list
-            File.open(list_path + '/' + file, 'r')
-              .each_line { |line|
+            File.open(list_path + '/' + file, 'r').each_line do |line|
               next if line =~ /NAME:/
               retval << line
-            }
+            end
             break
           end
         end
@@ -307,6 +325,10 @@ of 28605 dorks.
 
         @parser.on("--list-path <path>", "The path where to look up for dork lists") do |path|
           self.options[:list_path] = path
+        end
+        @parser.on('--manual', 'Display a detailed explanation of this tool') do
+          puts self.desc.detailed
+          exit
         end
 
         @parser.on("--help", "This help message") do
@@ -329,12 +351,12 @@ of 28605 dorks.
             file.close
           end
         }.collect { |file|
-          file  = File.open(list_path + '/' + file, 'r')
+          file_handle  = File.open(list_path + '/' + file, 'r')
           begin
-            file.readline.split(" ").drop(1).join(" ")
+            file_handle.readline.split(" ").drop(1).join(" ")
           rescue
           ensure
-            file.close
+            file_handle.close
           end
         }
       end

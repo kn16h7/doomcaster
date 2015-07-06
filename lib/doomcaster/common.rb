@@ -16,12 +16,12 @@ class String
   end
 end
 
-module Jurandir
+module DoomCaster
   require 'net/http'
 
   @@modules = {}
 
-  class ModuleDesc
+  class ToolDesc
     attr_reader :simple, :detailed
     
     def initialize(simple, detailed)
@@ -31,7 +31,7 @@ module Jurandir
   end
 
   
-  class JurandirModule
+  class DoomCasterTool
     attr_reader :name
     attr_accessor :options
     protected :initialize
@@ -54,25 +54,25 @@ module Jurandir
     end
   end
 
-  def Jurandir.register_modules
-    @@modules['admin-finder'] = Modules::AdminFinder.new
-    @@modules['dork-scanner'] = Modules::DorkScanner.new
+  def DoomCaster.register_modules
+    @@modules['admin-finder'] = Tools::AdminFinder.new
+    @@modules['dork-scanner'] = Tools::DorkScanner.new
   end
 
-  def Jurandir.get_module(name, options = {})
+  def DoomCaster.get_module(name, options = {})
     unless @@modules[name]
-      raise UnknownModuleError
+      raise UnknownToolError
     else
       @@modules[name].options = options
       @@modules[name]
     end
   end
 
-  def Jurandir.modules
+  def DoomCaster.modules
     @@modules
   end
   
-  def Jurandir.banner
+  def DoomCaster.banner
     system 'clear'
     print "\n"
     print " _           _ _                   _____           _ _    _ _                   \n".bold.red
@@ -97,7 +97,7 @@ module Jurandir
     print "+------------------------------------------------------------------------------+\n".bold.red
   end
   
-  def Jurandir.die(msg)
+  def DoomCaster.die(msg)
     puts msg
     exit 1
   end 

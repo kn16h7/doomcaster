@@ -4,6 +4,6 @@ $: << File.expand_path('../lib')
 
 require 'optparse'
 require 'colorize'
-require 'jurandir'
+require 'doomcaster'
 
-Jurandir::Application.run
+DoomCaster::Application.run
