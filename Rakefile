@@ -13,15 +13,15 @@ end
 desc "Build the project in a distributable zip."
 task :package do
   sh 'gem build doomcaster.gemspec'
-  FileUtils.mv("doomcaster-#{Jurandir::VERSION}.gem", 'production')
+  FileUtils.mv("doomcaster-#{DoomCaster::VERSION}.gem", 'production')
   FileUtils.copy_entry('wordlists/', 'production/wordlists')
-  sh "zip -r doomcaster-#{Jurandir::VERSION}.zip production/"
+  sh "zip -r doomcaster-#{DoomCaster::VERSION}.zip production/"
 end
 
 desc "Delete all production files."
 task :clean do
-  File.delete("doomcaster-#{Jurandir::VERSION}.zip")
+  File.delete("doomcaster-#{DoomCaster::VERSION}.zip")
   Dir.chdir('production')
-  File.delete("doomcaster-#{Jurandir::VERSION}.gem")
+  File.delete("doomcaster-#{DoomCaster::VERSION}.gem")
   FileUtils.rm_r('wordlists')
 end

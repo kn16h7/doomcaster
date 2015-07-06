@@ -1,5 +1,5 @@
 Gem::Specification.new do |s|
-  s.name = 'lolicon.rb'
+  s.name = 'doomcaster'
   s.version = '1.8'
   s.summary = 'Lolicon Squad oficial Ruby script.'
   s.description = %q{Well, I think the origin of this script auto-explain its purpose, yeah?}
