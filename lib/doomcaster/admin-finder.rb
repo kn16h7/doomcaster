@@ -151,7 +151,7 @@ Then just fill the file with the possible pages, one per line.
         found = false
 
         list_file = nil
-        Dir.foreach(list_path).select { |entry|
+        Dir.foreach(self.options[:list_path]).select { |entry|
           !File.directory?(entry)
         }.select { |entry|
           !File.readable?(entry)
