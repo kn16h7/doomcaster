@@ -166,8 +166,8 @@ Then just fill the file with the possible pages, one per line.
           file = File.open(self.options[:list_path] + '/' + file, "r")
           begin
             name = file.readline.split(" ").drop(1).join(' ')
-            if name =~ list_file_name
-              list_file = self.options[:list_path] + '/' + file.to_s
+            if name == list_file_name
+              list_file = self.options[:list_path] + '/' + File.basename(file)
               break
             end
           ensure
@@ -212,7 +212,7 @@ Then just fill the file with the possible pages, one per line.
               end
             elsif res.code =~ /200/ && check_site(res)
               puts " [+] Found -> #{complete_uri}\n".green.bold
-              puts " [+] Congratulation, this admin login page is working.\n"
+              puts " [+] Congratulation, this admin login page is working.\n".green.bold
               puts " [+] Good luck from SuperSenpai.\n".green.bold
               found = true
             else
@@ -220,7 +220,7 @@ Then just fill the file with the possible pages, one per line.
             end
 
             if found
-              puts " [!] WARNING: I recommend you to check if the page is really what you want before!"
+              puts " [!] WARNING: I recommend you to check if the page is really what you want before!".yellow.bold
               print "Desired page found. Do you want to continue?[s/n]: ".bold
               answer = gets.chomp
               
