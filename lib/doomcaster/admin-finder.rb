@@ -188,7 +188,7 @@ Then just fill the file with the possible pages, one per line.
             if res.code =~ /404/
               puts " [-] Not Found <- #{complete_uri}".red.bold ;
               next
-            elsif res.code =~ /302/
+            elsif res.code =~ /301/ || res.code =~ /302/
               location = res['Location']
 
               new_uri = if location =~ /^http:/
