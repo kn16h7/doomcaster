@@ -220,7 +220,7 @@ Then just fill the file with the possible pages, one per line.
         }.collect { |file|
           file = File.open(list_path + '/' + file, "r")
           begin
-            file.readline.split(" ")[1]
+            file.readline.split(" ").drop(1).join(' ')
           rescue
           ensure
             file.close
