@@ -26,7 +26,7 @@ $ rake
 ```
 
 Inside the folder these commands were ran, there'll be a file named
-"doomcaster-VERSION.zip", extract this fall and execute the install.sh
+"doomcaster-VERSION.zip", extract this file and execute the install.sh
 script inside it. Or change to the production/ directory inside the
 project and execute the install script.
 
