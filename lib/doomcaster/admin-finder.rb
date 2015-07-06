@@ -40,7 +40,8 @@ Then just fill the file with the possible pages, one per line.
                      else
                       self.options[:list_path]
                     end
-
+        self.options[:list_path] = list_path || self.options[:list_path]
+        
         lists = get_lists(list_path)
         
         unless site
@@ -92,7 +93,7 @@ Then just fill the file with the possible pages, one per line.
         puts "\n->The website: #{site}".green
         puts "->List to be used: #{list}".green
         puts "->Scan of the admin control panel is progressing...\n".green
-        search_generic(site, list_path + "/#{list}_list")
+        search_generic(site, list)
       end
 
       def parse_opts(parser)
@@ -146,8 +147,34 @@ Then just fill the file with the possible pages, one per line.
           http_res.body =~ /login/
       end
 
-      def search_generic(site, list_file)
+      def search_generic(site, list_file_name)
         found = false
+
+        list_file = nil
+        Dir.foreach(list_path).select { |entry|
+          !File.directory?(entry)
+        }.select { |entry|
+          !File.readable?(entry)
+        }.select { |file|
+          file = File.open(self.options[:list_path] + '/' + file, "r")
+          begin
+            file.readline =~ /NAME:/
+          ensure
+            file.close
+          end
+        }.collect { |file|
+          file = File.open(self.options[:list_path] + '/' + file, "r")
+          begin
+            name = file.readline.split(" ").drop(1).join(' ')
+            if name =~ list_name_file
+              list_file = self.options[:list_path] + '/' + file.to_s
+              break
+            end
+          ensure
+            file.close
+          end
+        }
+
         
         File.open(list_file) do |f|
           f.each_line do |line|
