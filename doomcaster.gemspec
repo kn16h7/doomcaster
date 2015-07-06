@@ -19,6 +19,6 @@ Gem::Specification.new do |s|
   s.executables = s.files.grep(/^bin\//) { |file| File.basename(file) }
   s.test_files = s.files.grep(/^test\//)
   s.require_paths = ['lib']
-  s.add_runtime_dependency 'google-search', ['<= 1.0.3']
-  s.add_runtime_dependency 'colorize', ['<= 0.7.7']
+  s.add_runtime_dependency 'google-search', ['>= 1.0.3']
+  s.add_runtime_dependency 'colorize', ['>= 0.7.7']
 end
