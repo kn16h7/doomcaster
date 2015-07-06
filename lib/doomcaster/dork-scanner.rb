@@ -105,7 +105,7 @@ of 28605 dorks.
         @vuln_sites = []
         
         list_path = unless self.options[:list_path]
-                      ENV['HOME'] + "/.lolicon.rb/wordlists/dork-lists"
+                      ENV['HOME'] + "/.doomcaster/wordlists/dork-lists"
                     else
                       self.options[:list_path]
                     end
