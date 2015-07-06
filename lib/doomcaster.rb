@@ -1,12 +1,10 @@
-$: << File.expand_path(File.dirname(__FILE__))
-
 require 'doomcaster/common'
 require 'doomcaster/admin-finder'
 require 'doomcaster/dork-scanner'
 require 'doomcaster/errors'
 
 module DoomCaster
-  VERSION = '1.8'
+  VERSION = '1.8.1'
 
   require 'optparse'
   
