@@ -22,6 +22,7 @@ In your terminal, execute these commands:
 
 ```
 $ git clone https://github.com/53F4N/doomcaster
+$ cd doomcaster
 $ rake
 ```
 
@@ -30,4 +31,9 @@ Inside the folder these commands were ran, there'll be a file named
 script inside it. Or change to the production/ directory inside the
 project and execute the install script.
 
+Example:
+```
+$ cd production
+& ./install.sh
+```
 You can freely distribute the zip.
