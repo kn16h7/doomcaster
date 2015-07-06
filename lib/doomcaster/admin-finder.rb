@@ -176,7 +176,8 @@ Then just fill the file with the possible pages, one per line.
               if check_site(new_res)
                 puts " [+] Found -> #{new_uri}\n".green.bold
                 puts " [+] But this admin page is actually in another place\n".green.bold
-                puts " [+] Congratulation, this admin login page is working.\n\n Good luck from SuperSenpai.\n\n".green.bold
+                puts " [+] Congratulation, this admin login page is working!\n"
+                puts " [+] Good luck from SuperSenpai.\n\n".green.bold
                 found = true
               else
                 puts " [-] False positive: #{new_uri} is not a valid admin page.".bold.yellow
@@ -184,13 +185,15 @@ Then just fill the file with the possible pages, one per line.
               end
             elsif res.code =~ /200/ && check_site(res)
               puts " [+] Found -> #{complete_uri}\n".green.bold
-              puts " [+] Congratulation, this admin login page is working.\n Good luck from SuperSenpai.\n".green.bold
+              puts " [+] Congratulation, this admin login page is working.\n"
+              puts " [+] Good luck from SuperSenpai.\n".green.bold
               found = true
             else
               puts " [-] Not Found <- #{complete_uri}\n".red
             end
 
             if found
+              puts " [!] WARNING: I recommend you to check if the page is really what you want before!"
               print "Desired page found. Do you want to continue?[s/n]: ".bold
               answer = gets.chomp
               
