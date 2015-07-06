@@ -12,7 +12,9 @@ Gem::Specification.new do |s|
   ['.gitignore', 'Rakefile', 'doomcaster.gemspec', 'CHANGELOG'].each { |file|
     files.delete(file)
   }
-  
+ 
+  files.grep(/(^wordlists|^production)/).each { |file| files.delete(file) }
+ 
   s.files = files
   s.executables = s.files.grep(/^bin\//) { |file| File.basename(file) }
   s.test_files = s.files.grep(/^test\//)
