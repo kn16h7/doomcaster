@@ -74,15 +74,16 @@ module DoomCaster
   
   def DoomCaster.banner
     system 'clear'
-    print "\n"
-    print " _           _ _                   _____           _ _    _ _                   \n".bold.red
-    print "| |         | (_)                 |_   _|         | | |  (_) |  　     ∩＿＿＿∩  \n".bold.red
-    print "| |     ___ | |_  ___ ___  _ __     | | ___   ___ | | | ___| |_      |ノ  　  ヽ \n".bold.red
-    print "| |    / _ \\| | |/ __/ _ \\| '_ \\    | |/ _ \\ / _ \\| | |/ / | __|    /　 ●　  ●  |\n".bold.red
-    print "| |___| (_) | | | (_| (_) | | | |   | | (_) | (_) | |   <| | |_    |　 ( _●_)  ミ\n".bold.red
-    print "\\_____/\\___/|_|_|\\___\\___/|_| |_|   \\_/\\___/ \\___/|_|_|\\_\\_|\\__|  彡､  　 |∪| ､｀＼\n".bold.red
+
+    print "▓█████▄ ▒█████  ▒█████  ███▄ ▄███▓▄████▄  ▄▄▄       ██████▄▄▄█████▓█████ ██▀███ \n".bold.red
+    print "▒██▀ ██▒██▒  ██▒██▒  ██▓██▒▀█▀ ██▒██▀ ▀█ ▒████▄   ▒██    ▒▓  ██▒ ▓▓█   ▀▓██ ▒ ██\n".bold.red
+    print "░██   █▒██░  ██▒██░  ██▓██    ▓██▒▓█    ▄▒██  ▀█▄ ░ ▓██▄  ▒ ▓██░ ▒▒███  ▓██ ░▄█ \n".bold.red
+    print "░▓█▄   ▒██   ██▒██   ██▒██    ▒██▒▓▓▄ ▄██░██▄▄▄▄██  ▒   ██░ ▓██▓ ░▒▓█  ▄▒██▀▀█▄ \n".bold.red
+    print "░▒████▓░ ████▓▒░ ████▓▒▒██▒   ░██▒ ▓███▀ ░▓█   ▓██▒██████▒▒ ▒██▒ ░░▒████░██▓ ▒██\n".bold.red
+    print " ▒▒▓  ▒░ ▒░▒░▒░░ ▒░▒░▒░░ ▒░   ░  ░ ░▒ ▒  ░▒▒   ▓▒█▒ ▒▓▒ ▒ ░ ▒ ░░  ░░ ▒░ ░ ▒▓ ░▒▓\n".bold.red
+    print " ░ ▒  ▒  ░ ▒ ▒░  ░ ▒ ▒░░  ░      ░ ░  ▒    ▒   ▒▒ ░ ░▒  ░ ░   ░    ░ ░  ░ ░▒ ░ ▒\n".bold.red
     print "+------------------------------------------------------------------------------+\n".bold.red
-    print "|               .:lolicon.rb the perfect tookit for lazy hacking:.             |\n".bold.red
+    print "|             .:DoomCaster.rb the perfect tookit for lazy hacking:.            |\n".bold.red
     print "|                     .:Coded By SuperSenpai & PrestusHood:.                   |\n".bold.red
     print "|             ~+~Sponsored by Lolicon Squad & ProtoWave Reloaded~+~            |\n".bold.red
     print "|                                                                              |\n".bold.red
