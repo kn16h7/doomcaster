@@ -221,7 +221,7 @@ of 28605 dorks.
 
           puts "Got a redirection to: #{redirection}".bold
           loop do
-            puts "Do you want to follow it? [y/n]: ".bold
+            print "Do you want to follow it? [y/n]: ".bold
             answer = gets.chomp
 
             if answer =~ /y/
