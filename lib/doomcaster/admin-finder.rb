@@ -166,7 +166,7 @@ Then just fill the file with the possible pages, one per line.
           file = File.open(self.options[:list_path] + '/' + file, "r")
           begin
             name = file.readline.split(" ").drop(1).join(' ')
-            if name =~ list_name_file
+            if name =~ list_file_name
               list_file = self.options[:list_path] + '/' + file.to_s
               break
             end
