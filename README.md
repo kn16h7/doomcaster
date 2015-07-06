@@ -1,4 +1,4 @@
-# doomcaster
+# DoomCaster
 The perfect toolkit for lazy hacking.
 
 # What the f#ck is this shit?
@@ -11,7 +11,6 @@ is the result.
 # How do I install your shitty and bad written ruby code?
 
 You will need:
-
 -- git
 
 -- rake
@@ -21,7 +20,7 @@ You will need:
 In your terminal, execute these commands:
 
 ```
-$ git clonhttps://github.com/53F4N/doomcaster
+$ git clone https://github.com/53F4N/doomcaster
 $ rake
 ```
 
