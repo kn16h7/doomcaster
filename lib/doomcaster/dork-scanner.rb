@@ -4,6 +4,8 @@ module DoomCaster
     require 'net/http'
     
     class DorkScanner < DoomCaster::DoomCasterTool
+      include DoomCaster::HttpUtils
+      
       def initialize
         super('dork-scanner', {})
         @vuln_sites = []
@@ -20,7 +22,7 @@ will look for as many sites as possible and deliver them to the user.
 
 LISTS:
 You can create you own list of dorks, to this, go to the directory:
-/home/<your-home>/.lolicon.rb/wordlists/dork-lists and create a new file with
+/home/<your-home>/.doomcaster/wordlists/dork-lists and create a new file with
 the first line as:
 NAME: <name of your dork list>
 
@@ -134,7 +136,7 @@ of 28605 dorks.
       end
 
       def load_sql_errors_list
-        sql_list_file = ENV['HOME'] + '/.lolicon.rb/wordlists/sql-errors-list'
+        sql_list_file = ENV['HOME'] + '/.doomcaster/wordlists/sql-errors-list'
         retval = []
         file = File.open(sql_list_file)
         begin
@@ -157,10 +159,19 @@ of 28605 dorks.
         
         retval
       end
+      
+      def get_parameters(query)
+        query.split("&")
+      end
 
-      def vuln_query(query)
+      def vuln_parameter(query, param)
         chunks = query.split("&")
-        chunks[0] << '\''
+        chunks.each_index { |idx|
+          if param == chunks[idx]
+            chunks[idx] << "'"
+            break
+          end
+        }
         chunks.join("&")
       end
 
@@ -173,14 +184,10 @@ of 28605 dorks.
           puts " [-] DoomCaster will consider this site seems not vulnerable".bold.yellow
           return false
         end
-
-        http_handle = Net::HTTP.new(uri.host, uri.port)
-        http_handle.read_timeout = 10
-        req = Net::HTTP::Get.new(uri.path + '?' + uri.query)
-
+        
         http_res = nil
         begin
-          http_res = http_handle.request(req)
+          http_res = do_http_get(uri, 10)
         rescue Errno::ETIMEDOUT
           puts " [-] Connection to #{uri} timed out, going to the next".bg_red
           return false
@@ -200,18 +207,33 @@ of 28605 dorks.
           puts " [*] DoomCaster will check for vulnerability".red.bold
 
           vuln_uri = uri.clone
-          vuln_uri.query = vuln_query(uri.query)
-          http_res = Net::HTTP.get_response(vuln_uri)
 
-          if check_sql_error(http_res.body)
-            puts " [+] #{uri} seems vulnerable!".green.bold
-            @vuln_sites << uri
-            return true
-          else
-            puts " [-] #{uri} seems not vulnerable.".yellow.bold
-            return false
+          params = get_parameters(uri.query)
+
+          if params.length > 1
+            puts " [+] This URI has more than one parameter! Doomcaster will check for vulnerabilities in each one.".green.bold
           end
 
+          vuln_detected = false
+          params.each do |param|
+            vuln_uri.query = vuln_parameter(uri.query, param)
+
+            begin
+              http_res = do_http_get(vuln_uri)
+            rescue Net::ReadTimeout
+              puts " [-] Connection timed out, going to the next"
+              return false
+            end
+
+            if check_sql_error(http_res.body)
+              puts " [+] The parameter #{param} of #{uri} seems vulnerable!".green.bold
+              @vuln_sites << uri
+              vuln_detected = true
+            else
+              puts " [-] Parameter #{param} of #{uri} seems not vulnerable.".yellow.bold
+            end
+          end
+          return vuln_detected
         elsif http_res.code =~ /301/ || http_res.code =~ /302/
           redirection = if http_res['Location'] =~ /^http:/
                           http_res['Location']
