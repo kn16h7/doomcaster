@@ -8,7 +8,7 @@ module DoomCaster
       include DoomCaster::HttpUtils
       
       def initialize
-        super('dork-scanner', {})
+        super('dcdorker', {})
         @vuln_sites = []
       end
       

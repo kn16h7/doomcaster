@@ -8,7 +8,7 @@ module DoomCaster
   module Tools
     class AdminFinder < DoomCaster::DoomCasterTool
       def initialize
-        super('admin-finder', {})
+        super('dc-admin-buster', {})
       end
 
       def desc

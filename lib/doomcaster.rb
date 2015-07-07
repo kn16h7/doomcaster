@@ -4,7 +4,7 @@ require 'doomcaster/mixins'
 require 'doomcaster/tools'
 
 module DoomCaster
-  VERSION = '1.8.3'
+  VERSION = '1.8.5'
 
   require 'optparse'
   
