@@ -22,3 +22,10 @@ task :clean do
   File.delete("doomcaster-#{VERSION}.gem")
   rm_r('wordlists')
 end
+
+desc "Do everything and install"
+task :all => :default  do
+  Dir.chdir('production')
+  puts Dir.getwd
+  sh 'sh install.sh'
+end
