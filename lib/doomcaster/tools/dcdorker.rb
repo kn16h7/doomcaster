@@ -321,8 +321,16 @@ of 28605 dorks.
           
           break if count == num
         end
+
+        if count != num
+          puts "[!] It seems that this dork didn't give us sufficient results." +
+            " It may be because this dork is unefficient and Google cannot provide " +
+            "a good number of sites to test. I recommend you to try other dorks."
+          return
+        end
         
-        puts "\n [*] Scanning complete, #{count} of sites that seem vulnerable were found, as you asked.".green.bold
+        puts "\n [*] Scanning complete, #{count} of sites that seem vulnerable were found," +
+          "as you asked.".green.bold
         puts " [*] The sites are:".green.bold
         @vuln_sites.each { |site|
           puts " [+] #{site}".green.bold
