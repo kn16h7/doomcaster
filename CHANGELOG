@@ -1,3 +1,7 @@
+1.8.3
+	-- Added a feature where the dork-scanner tests each parameter of a site
+	looking for SQLi vulnerability.
+	-- Small reorganization of the code.
 1.8
 	-- The tool is now called DoomCaster.
 	-- Finalized tool: dork-scanner.
