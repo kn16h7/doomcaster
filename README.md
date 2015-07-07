@@ -37,3 +37,12 @@ $ cd production
 & ./install.sh
 ```
 You can freely distribute the zip.
+
+# Update for version 1.8.3
+
+There's a new Rake task that does everything to have DoomCaster installed.
+Now you can install DoomCaster by simply:
+```
+$ git clone https://github.com/53F4N/doomcaster 
+& rake all
+```
