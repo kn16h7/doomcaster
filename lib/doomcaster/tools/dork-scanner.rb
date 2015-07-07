@@ -34,7 +34,9 @@ of 28605 dorks.
       end
 
       def get_domain
-        print " [*] Digit the domain you want to scan (e.g. .com, .net, .org, etc): ".red.bold
+        puts " [*] Digit the domain you want to scan (e.g. .com, .net, .org, etc). ".red.bold
+        puts " [*] If you don't care about the domain, just hit return.".red.bold
+        print "-->".red.bold
         gets.chomp
       end
 
