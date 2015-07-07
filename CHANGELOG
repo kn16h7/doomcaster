@@ -1,3 +1,7 @@
+1.8.5
+	-- Renamed tools.
+	-- Huge improvements in dcdorker.
+
 1.8.3
 	-- Added a feature where the dork-scanner tests each parameter of a site
 	looking for SQLi vulnerability.
