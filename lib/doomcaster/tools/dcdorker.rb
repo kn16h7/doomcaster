@@ -323,9 +323,9 @@ of 28605 dorks.
         end
 
         if count != num
-          puts "[!] It seems that this dork didn't give us sufficient results." +
+          puts " [-] It seems that this dork didn't give us sufficient results." +
             " It may be because this dork is unefficient and Google cannot provide " +
-            "a good number of sites to test. I recommend you to try other dorks."
+            "a good number of sites to test. I recommend you to try other dorks.".bold.yellow
           return
         end
         
