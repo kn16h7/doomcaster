@@ -11,7 +11,8 @@ module DoomCaster
         super('dork-scanner', {})
         @vuln_sites = []
       end
-
+      
+      public
       def desc
         DoomCaster::ToolDesc.new(
                                  %q{A tool to look for vulnerable sites based on a Google Dork},
@@ -34,6 +35,40 @@ of 28605 dorks.
                                  })
       end
 
+      def run
+        @parser.parse!
+        @vuln_sites = []
+        
+        list_path = unless self.options[:list_path]
+                      ENV['HOME'] + "/.doomcaster/wordlists/dork-lists"
+                    else
+                      self.options[:list_path]
+                    end
+        
+        puts " [*] Welcome to the DoomCaster Dork Scanner!".red.bold
+        
+        domain = get_domain
+        dork = get_dork(list_path)
+        sanitized_dork = sanitize_dork(dork)
+        complete_dork = domain + sanitized_dork
+        
+        puts " [*] The complete dork is: #{complete_dork}".green.bold
+        amount = nil
+        loop do
+          begin
+            puts "How many sites do you want to check for vulnerabilities?".bold
+            print "--> ".bold
+            amount = Integer(gets.chomp)
+            break
+          rescue ArgumentError
+            puts "Invalid Input!".bg_red
+          end
+        end
+        
+        start_dork_scan(complete_dork, amount)
+      end
+
+      private
       def get_domain
         puts " [*] Digit the domain you want to scan (e.g. .com, .net, .org, etc). ".red.bold
         puts " [*] If you don't care about the domain, just hit return.".red.bold
@@ -104,40 +139,7 @@ of 28605 dorks.
         end
         what_dork
       end
-
-      def run
-        @parser.parse!
-        @vuln_sites = []
-        
-        list_path = unless self.options[:list_path]
-                      ENV['HOME'] + "/.doomcaster/wordlists/dork-lists"
-                    else
-                      self.options[:list_path]
-                    end
-        
-        puts " [*] Welcome to the DoomCaster Dork Scanner!".red.bold
-        
-        domain = get_domain
-        dork = get_dork(list_path)
-        sanitized_dork = sanitize_dork(dork)
-        complete_dork = domain + sanitized_dork
-
-        puts " [*] The complete dork is: #{complete_dork}".green.bold
-        amount = nil
-        loop do
-          begin
-            puts "How many sites do you want to check for vulnerabilities?".bold
-            print "--> ".bold
-            amount = Integer(gets.chomp)
-            break
-          rescue ArgumentError
-            puts "Invalid Input!".bg_red
-          end
-        end
-        
-        start_dork_scan(complete_dork, amount)
-      end
-
+      
       def load_sql_errors_list
         sql_list_file = ENV['HOME'] + '/.doomcaster/wordlists/sql-errors-list'
         retval = []
