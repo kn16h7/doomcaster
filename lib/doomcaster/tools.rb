@@ -1,2 +1,2 @@
-require 'doomcaster/tools/admin-finder'
-require 'doomcaster/tools/dork-scanner'
+require 'doomcaster/tools/dc-admin-buster'
+require 'doomcaster/tools/dcdorker'

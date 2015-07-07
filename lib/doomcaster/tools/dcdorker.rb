@@ -68,6 +68,27 @@ of 28605 dorks.
         start_dork_scan(complete_dork, amount)
       end
 
+      def parse_opts(parser)
+        @parser = parser
+        
+        @parser.separator ""
+        @parser.separator "dork-scanner options:"
+        
+        @parser.on("--list-path <path>", "The path where to look up for dork lists") do |path|
+          self.options[:list_path] = path
+        end
+        
+        @parser.on('--manual', 'Display a detailed explanation of this tool') do
+          puts self.desc.detailed
+          exit
+        end
+        
+        @parser.on("--help", "This help message") do
+          puts @parser
+          exit
+        end
+      end
+
       private
       def get_domain
         puts " [*] Digit the domain you want to scan (e.g. .com, .net, .org, etc). ".red.bold
@@ -352,27 +373,6 @@ of 28605 dorks.
         completed = true
         puts '.'.bold
         retval
-      end
-
-      def parse_opts(parser)
-        @parser = parser
-
-        @parser.separator ""
-        @parser.separator "dork-scanner options:"
-
-        @parser.on("--list-path <path>", "The path where to look up for dork lists") do |path|
-          self.options[:list_path] = path
-        end
-        
-        @parser.on('--manual', 'Display a detailed explanation of this tool') do
-          puts self.desc.detailed
-          exit
-        end
-
-        @parser.on("--help", "This help message") do
-          puts @parser
-          exit
-        end
       end
 
       def get_dork_lists(list_path)

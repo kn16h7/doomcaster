@@ -11,7 +11,7 @@ module DoomCaster
   class Application
     def Application.setup
       trap('INT') do
-        puts "Exiting (user interrupt).."
+        puts "Exiting (user interrupt)..".red.bold
         exit
       end
     end
