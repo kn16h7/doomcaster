@@ -55,8 +55,8 @@ module DoomCaster
   end
 
   def DoomCaster.register_modules
-    @@modules['admin-finder'] = Tools::AdminFinder.new
-    @@modules['dork-scanner'] = Tools::DorkScanner.new
+    @@modules['dc-admin-buster'] = Tools::AdminFinder.new
+    @@modules['dcdorker'] = Tools::DorkScanner.new
   end
 
   def DoomCaster.get_module(name, options = {})
