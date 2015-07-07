@@ -1,6 +1,7 @@
 module DoomCaster
   module Tools
     require 'google-search'
+    require 'timeout'
     require 'net/http'
     
     class DorkScanner < DoomCaster::DoomCasterTool
@@ -189,7 +190,9 @@ of 28605 dorks.
         
         http_res = nil
         begin
-          http_res = do_http_get(uri, 10)
+          Timeout::timeout(60) do
+            http_res = do_http_get(uri, 10)
+          end
         rescue Errno::ETIMEDOUT
           puts " [-] Connection to #{uri} timed out, going to the next".bg_red
           return false
@@ -201,6 +204,9 @@ of 28605 dorks.
           return false
         rescue SocketError => e
           puts " [-] Network error while trying to test (#{e}), going to the next".bg_red
+          return false
+        rescue Timeout::Error
+          puts " [-] Site took a very long time to download, giving up of this site and going to the next".bg_red
           return false
         end
 
@@ -219,7 +225,18 @@ of 28605 dorks.
           vuln_detected = false
           params.each do |param|
             vuln_uri.query = vuln_parameter(uri.query, param)
-            http_res = Net::HTTP.get_response(vuln_uri)
+
+            begin
+              Timeout::timeout(60) do
+                http_res = do_http_get(vuln_uri)
+              end
+            rescue Timeout::Error
+              puts " [-] Site took a very long time to download, giving up of this site and going to the next".bg_red
+              return false
+            rescue Net::NetReadTimeout
+              puts " [-] Connection timed out, going to the next".bg_red
+              return false
+            end
 
             if check_sql_error(http_res.body)
               puts " [+] The parameter #{param} of #{uri} seems vulnerable!".green.bold
@@ -344,6 +361,7 @@ of 28605 dorks.
         @parser.on("--list-path <path>", "The path where to look up for dork lists") do |path|
           self.options[:list_path] = path
         end
+        
         @parser.on('--manual', 'Display a detailed explanation of this tool') do
           puts self.desc.detailed
           exit
