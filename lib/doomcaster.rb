@@ -17,7 +17,7 @@ module DoomCaster
     end
     
     def Application.run
-      DoomCaster::register_modules
+      DoomCaster::register_tools
       setup
 
       options = {
@@ -34,7 +34,7 @@ module DoomCaster
           options[:tool] = tool
 
           begin
-            what_tool = DoomCaster::get_module(options[:tool], options[:tool_opts])
+            what_tool = DoomCaster::get_tool(options[:tool], options[:tool_opts])
             what_tool.parse_opts(main_parser)
           rescue UnknownToolError
             unless options[:tool]
@@ -46,7 +46,7 @@ module DoomCaster
         end
         
         opts.on("--tools", "Show available tools") do
-          DoomCaster::modules.keys.each { |key|
+          DoomCaster::tools.keys.each { |key|
             puts "#{key}\t#{DoomCaster::modules[key].desc.simple}"
           }
           exit

@@ -19,7 +19,7 @@ end
 module DoomCaster
   require 'net/http'
 
-  @@modules = {}
+  @@tools = {}
 
   class ToolDesc
     attr_reader :simple, :detailed
@@ -54,22 +54,22 @@ module DoomCaster
     end
   end
 
-  def DoomCaster.register_modules
-    @@modules['dc-admin-buster'] = Tools::AdminFinder.new
-    @@modules['dcdorker'] = Tools::DorkScanner.new
+  def DoomCaster.register_tools
+    @@tools['dc-admin-buster'] = Tools::AdminFinder.new
+    @@tools['dcdorker'] = Tools::DorkScanner.new
   end
 
-  def DoomCaster.get_module(name, options = {})
-    unless @@modules[name]
+  def DoomCaster.get_tool(name, options = {})
+    unless @@tools[name]
       raise UnknownToolError
     else
-      @@modules[name].options = options
-      @@modules[name]
+      @@tools[name].options = options
+      @@tools[name]
     end
   end
 
-  def DoomCaster.modules
-    @@modules
+  def DoomCaster.tools
+    @@tools
   end
   
   def DoomCaster.banner
