@@ -307,19 +307,23 @@ of 28605 dorks.
         
         #WARNING: DEBUG!
         count = 0
-        Google::Search::Web.new(:query => query).each do |res|
-          uri = URI.parse(res.uri)
-          next if domain_cache.include?(uri.host)
-          
-          puts "\n"
-
-          domain_cache << uri.host
-          encoded_uri = URI.encode(res.uri)
-          if process_res(URI.parse(encoded_uri))
-            count += 1
+        begin
+          Google::Search::Web.new(:query => query).each do |res|
+            uri = URI.parse(res.uri)
+            next if domain_cache.include?(uri.host)
+            
+            puts "\n"
+            
+            domain_cache << uri.host
+            encoded_uri = URI.encode(res.uri)
+            if process_res(URI.parse(encoded_uri))
+              count += 1
+            end
+            
+            break if count == num
           end
-          
-          break if count == num
+        rescue IOError
+          DoomCaster::die " [FATAL] I/O Error while scanning.".bg_red
         end
 
         if count != num
