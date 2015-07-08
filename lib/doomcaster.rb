@@ -4,7 +4,7 @@ require 'doomcaster/mixins'
 require 'doomcaster/tools'
 
 module DoomCaster
-  VERSION = '1.8.5'
+  VERSION = '1.8.6'
 
   require 'optparse'
   
@@ -54,6 +54,11 @@ module DoomCaster
           
         opts.on("--help", "Print this help message") do |opt|
           puts opts
+          exit
+        end
+
+        opts.on("--version", "Print the version and exit") do
+          puts "DoomCaster Version #{VERSION}..."
           exit
         end
       end
