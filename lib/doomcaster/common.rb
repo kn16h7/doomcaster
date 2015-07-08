@@ -9,8 +9,6 @@ class String
 end
 
 module DoomCaster
-  require 'net/http'
-
   @@tools = {}
 
   class ToolDesc
