@@ -19,7 +19,6 @@ module DoomCaster
       @detailed = detailed
     end
   end
-
   
   class DoomCasterTool
     attr_reader :name
