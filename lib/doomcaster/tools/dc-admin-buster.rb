@@ -11,6 +11,7 @@ module DoomCaster
         super('dc-admin-buster', {})
       end
 
+      public
       def desc
         DoomCaster::ToolDesc.new(
                                  %q{A tool for find the administrative page in websites.
@@ -125,6 +126,7 @@ Then just fill the file with the possible pages, one per line.
         end
       end
 
+      private
       def check_site(http_res)
         http_res.body =~ /Username/ ||
           http_res.body =~ /Password/ ||
