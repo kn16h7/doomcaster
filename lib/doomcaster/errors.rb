@@ -1,4 +1,3 @@
 module DoomCaster
-  class UnknownModuleError < StandardError
-  end
+  class UnknownToolError < StandardError; end
 end

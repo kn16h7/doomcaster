@@ -305,10 +305,9 @@ of 28605 dorks.
         query = "inurl:" + dork
         domain_cache = []
         
-        #WARNING: DEBUG!
         count = 0
         begin
-          Google::Search::Web.new(:query => query).each do |res|
+          Google::Search::Web.new(:query => query, :safety_level => :off).each do |res|
             uri = URI.parse(res.uri)
             next if domain_cache.include?(uri.host)
             

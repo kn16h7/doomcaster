@@ -1,5 +1,5 @@
-require 'doomcaster/common'
 require 'doomcaster/errors'
+require 'doomcaster/common'
 require 'doomcaster/mixins'
 require 'doomcaster/tools'
 
@@ -36,7 +36,7 @@ module DoomCaster
           begin
             what_tool = DoomCaster::get_module(options[:tool], options[:tool_opts])
             what_tool.parse_opts(main_parser)
-          rescue UnknownModuleError
+          rescue UnknownToolError
             unless options[:tool]
               DoomCaster::die "ERROR: No tool specified!".bg_red
             else
