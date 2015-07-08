@@ -1,3 +1,8 @@
+1.8.6
+	-- Several bug fixes.
+	-- dc-admin-finder now has a timeout of 60 seconds.
+	-- dcdorker now has more helpful messages.
+
 1.8.5
 	-- Renamed tools.
 	-- Huge improvements in dcdorker.
