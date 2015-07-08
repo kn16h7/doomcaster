@@ -7,6 +7,10 @@ module DoomCaster
   
   module Tools
     class AdminFinder < DoomCaster::DoomCasterTool
+      include DoomCaster::HttpUtils
+
+      require 'timeout'
+      
       def initialize
         super('dc-admin-buster', {})
       end
@@ -41,8 +45,8 @@ Then just fill the file with the possible pages, one per line.
                      else
                       self.options[:list_path]
                     end
-        self.options[:list_path] = list_path || self.options[:list_path]
         
+        self.options[:list_path] = list_path || self.options[:list_path]
         lists = get_lists(list_path)
         
         unless site
@@ -184,8 +188,16 @@ Then just fill the file with the possible pages, one per line.
             
             complete_uri = site + line
             puts " [*] Trying: #{complete_uri}".bold
-            
-            res = Net::HTTP.get_response(URI(complete_uri))
+
+            res = nil
+            begin
+              Timeout::timeout(60) do
+                res = Net::HTTP.get_response(URI(complete_uri))
+              end
+            rescue Timeout::Error
+              puts " [-] Request timed out.".bg_red
+              next
+            end
             
             if res.code =~ /404/
               puts " [-] Not Found <- #{complete_uri}".red.bold ;
