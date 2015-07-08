@@ -28,7 +28,7 @@ module DoomCaster
       what_tool = nil
       
       main_parser = OptionParser.new do |opts|
-        opts.banner = "Usage: ruby #{$0} [options]"
+        opts.banner = "Usage: ruby doomcaster [options]"
         
         opts.on("--tool <tool>", "What tool will be used") do |tool|
           options[:tool] = tool
