@@ -1,10 +1,4 @@
 module DoomCaster
-  class String
-    def bg_red
-      self.colorize(:background => :red, :color => :white)
-    end
-  end
-  
   module Tools
     class AdminFinder < DoomCaster::DoomCasterTool
       include DoomCaster::HttpUtils
