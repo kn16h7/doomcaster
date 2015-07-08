@@ -1,10 +1,11 @@
 require 'doomcaster/errors'
-require 'doomcaster/common'
+require 'doomcaster/arts'
 require 'doomcaster/mixins'
+require 'doomcaster/common'
 require 'doomcaster/tools'
 
 module DoomCaster
-  VERSION = '1.8.7'
+  VERSION = '1.8.8'
 
   require 'optparse'
   

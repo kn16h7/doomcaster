@@ -1,8 +1,6 @@
 module DoomCaster
   module Tools
-    class AdminFinder < DoomCaster::DoomCasterTool
-      include DoomCaster::HttpUtils
-
+    class AdminFinder < NetTool
       require 'timeout'
       
       def initialize
@@ -44,21 +42,20 @@ Then just fill the file with the possible pages, one per line.
         lists = get_lists(list_path)
         
         unless site
-          puts " [*] Enter the website you want to scan (e.g.: www.domaine.com or www.domaine.com/path\)".red.bold
-          print" --> ".red.bold
-          site = gets.chomp
+          message = "Enter the website you want to scan "
+          message <<  "(e.g.: www.domaine.com or www.domaine.com/path\):"
+          site = ask_no_question message
         end
         
         unless list
-          print "\n"
-          puts " [*] Enter the list you want to use".red.bold
-
           if lists.empty?
-            puts " [-] Cannot scan site: No list available".bg_red
-            return
+            fatal "Cannot scan site: No list available"
+            exit 1
           end
           
-          puts " [*] The available lists are:\n".red.bold
+          print "\n"
+          info "Enter the list you want to use."
+          info "The available lists are:\n"
 
           lists.each_index { |idx|
             puts " [#{idx}] #{lists[idx]}".red.bold
@@ -66,7 +63,7 @@ Then just fill the file with the possible pages, one per line.
 
           loop do
             begin
-              print " --> ".red.bold
+              print "==> ".red.bold
               idx = Integer(gets.chomp)
 
               unless lists[idx]
@@ -81,17 +78,18 @@ Then just fill the file with the possible pages, one per line.
           end
         else
           unless lists.include?(self.options[:list])
-            puts " [-] Cannot scan site: The list you have specified with --list is unknown".bg_red
+            fatal "Cannot scan site: The list you have specified with --list is unknown."
             return
           end
         end
         
         site = "http://" + site if site !~ /^http:/
         site = site + "/" if site !~ /\/$/
-        
-        puts "\n->The website: #{site}".green
-        puts "->List to be used: #{list}".green
-        puts "->Scan of the admin control panel is progressing...\n".green
+
+        puts "\n"
+        info "The website: #{site}"
+        info "List to be used: #{list}"
+        info "Scan of the admin control panel is progressing...\n"
         search_generic(site, list)
       end
 
@@ -181,7 +179,7 @@ Then just fill the file with the possible pages, one per line.
             next if line =~ /^NAME:/
             
             complete_uri = site + line
-            puts " [*] Trying: #{complete_uri}".bold
+            normal_info "Trying: #{complete_uri}"
 
             res = nil
             begin
@@ -189,12 +187,12 @@ Then just fill the file with the possible pages, one per line.
                 res = Net::HTTP.get_response(URI(complete_uri))
               end
             rescue Timeout::Error
-              puts " [-] Request timed out.".bg_red
+              fatal "Request timed out"
               next
             end
             
             if res.code =~ /404/
-              puts " [-] Not Found <- #{complete_uri}".red.bold ;
+              bad_info "Not Found <- #{complete_uri}"
               next
             elsif res.code =~ /301/ || res.code =~ /302/
               location = res['Location']
@@ -205,39 +203,42 @@ Then just fill the file with the possible pages, one per line.
                           complete_uri.chomp + location
                         end
               
-              puts " [*] Possible admin page found in: #{new_uri}. But jurandir will check!".bold
+              normal_info "Possible admin page found in: #{new_uri}. But jurandir will check!"
               new_res =  Net::HTTP.get_response(URI(new_uri))
               
               if check_site(new_res)
-                puts " [+] Found -> #{new_uri}\n".green.bold
-                puts " [+] But this admin page is actually in another place\n".green.bold
-                puts " [+] Congratulation, this admin login page is working!\n"
-                puts " [+] Good luck from SuperSenpai.\n\n".green.bold
+                good "Found -> #{new_uri}\n"
+                good "But this admin page is actually in another place\n"
+                good "Congratulation, this admin login page is working!\n"
+                good "Good luck from SuperSenpai.\n"
                 found = true
               else
-                puts " [-] False positive: #{new_uri} is not a valid admin page.".bold.yellow
+                bad_info "False positive: #{new_uri} is not a valid admin page."
                 next
               end
             elsif res.code =~ /200/ && check_site(res)
-              puts " [+] Found -> #{complete_uri}\n".green.bold
-              puts " [+] Congratulation, this admin login page is working.\n".green.bold
-              puts " [+] Good luck from SuperSenpai.\n".green.bold
+              good "Found -> #{complete_uri}\n"
+              good "Congratulation, this admin login page is working.\n"
+              good "Good luck from SuperSenpai.\n"
               found = true
             else
-              puts " [-] Not Found <- #{complete_uri}\n".red
+              bad_info "Not Found <- #{complete_uri}\n"
             end
 
             if found
-              puts " [!] WARNING: I recommend you to check if the page is really what you want before!".yellow.bold
-              print "Desired page found. Do you want to continue?[s/n]: ".bold
-              answer = gets.chomp
-              
-              if answer =~ /s/
-                puts "Ok...".green.bold
-              elsif answer =~ /n/
-                puts "Ok!".green.bold
-                break
-              end          
+              warn "WARNING: I recommend you to check if the page is really what you want before!"
+
+              ask "Desired page found. Do you want to continue? [y/n]: " do |answer|
+                if answer =~ /y/
+                  puts "Ok...".green.bold
+                elsif answer =~ /n/
+                  puts "Ok!".green.bold
+                  return
+                else
+                  bad_info "Invalid answer! DoomCaster will consider this as a no."
+                  return
+                end                
+              end
             end
           end
         end

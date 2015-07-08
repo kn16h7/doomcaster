@@ -2,11 +2,8 @@ module DoomCaster
   module Tools
     require 'google-search'
     require 'timeout'
-    require 'net/http'
     
-    class DorkScanner < DoomCaster::DoomCasterTool
-      include DoomCaster::HttpUtils
-      
+    class DorkScanner < NetTool
       def initialize
         super('dcdorker', {})
         @vuln_sites = []
@@ -45,20 +42,20 @@ of 28605 dorks.
                       self.options[:list_path]
                     end
         
-        puts " [*] Welcome to the DoomCaster Dork Scanner!".red.bold
+        info "Welcome to the DoomCaster Dork Scanner!"
         
         domain = get_domain
         dork = get_dork(list_path)
         sanitized_dork = sanitize_dork(dork)
         complete_dork = domain + sanitized_dork
         
-        puts " [*] The complete dork is: #{complete_dork}".green.bold
+        good "The complete dork is: #{complete_dork}"
         amount = nil
         loop do
           begin
-            puts "How many sites do you want to check for vulnerabilities?".bold
-            print "--> ".bold
-            amount = Integer(gets.chomp)
+            ask "How many vulnerable sites do you want??" do |answer|
+              amount = Integer(answer)
+            end
             break
           rescue ArgumentError
             puts "Invalid Input!".bg_red
@@ -91,20 +88,21 @@ of 28605 dorks.
 
       private
       def get_domain
-        puts " [*] Digit the domain you want to scan (e.g. .com, .net, .org, etc). ".red.bold
-        puts " [*] If you don't care about the domain, just hit return.".red.bold
-        print "-->".red.bold
-        gets.chomp
+        question  = "Digit the domain you want to scan (e.g. .com, .net, .org, etc)."
+        question << "If you don't care about the domain, just hit return."
+        ask_no_question question do |answer|
+          return answer
+        end
       end
 
       def get_dork(list_path)
-        puts " [*] Select the dork list you want to use, the available lists are:".red.bold
+        info "Select the dork list you want to use, the available lists are:"
         lists = get_dork_lists(list_path)
         puts ""
         lists.each_index { |idx|
           puts " [#{idx}] #{lists[idx]}".red.bold
         }
-        puts " [*] Custom dork".red.bold
+        info "Custom dork"
         
         list = nil
         what_dork = nil
@@ -135,23 +133,25 @@ of 28605 dorks.
         end
 
         unless custom
-          puts " [*] Ok! Loading wordlist.".red.bold
+          info "Ok! Loading wordlist."
           in_memory_list = load_wordlist(list_path, list)
 
           loop do
-            puts " [*] Selecting a random dork".red.bold
+            info "Selecting a random dork"
 
             size = in_memory_list.length
             what_dork = in_memory_list[Integer(rand(size))]
         
-            puts " [*] Selected dork is #{what_dork}".green.bold
+            info "Selected dork is #{what_dork}"
 
-            print "Do you want to use this dork? [y/n] ".bold
-            answer = gets.chomp
+            response = nil
+            ask "Do you want to use this dork? [y/n] " do |answer|
+              response = answer
+            end
 
-            if answer =~ /y/
+            if response =~ /y/
               break
-            elsif answer =~ /n/
+            elsif response =~ /n/
               next
             else
               puts "Invalid answer! DoomCaster will consider this as a no =)".bg_red
@@ -202,12 +202,12 @@ of 28605 dorks.
       end
 
       def process_res(uri)
-        puts " [*] Processing #{uri}...".red.bold
-        puts " [*] Verifying if #{uri} is alright...".red.bold
+        info "Processing #{uri}..."
+        info "Verifying if #{uri} is alright..."
 
         unless uri.query
-          puts " [-] #{uri} lacks of a parameter to check vulnerability".bold.yellow
-          puts " [-] DoomCaster will consider this site seems not vulnerable".bold.yellow
+          bad_info "#{uri} lacks of a parameter to check vulnerability"
+          bad_info "DoomCaster will consider this site seems not vulnerable"
           return false
         end
         
@@ -217,32 +217,32 @@ of 28605 dorks.
             http_res = do_http_get(uri, 10)
           end
         rescue Errno::ETIMEDOUT
-          puts " [-] Connection to #{uri} timed out, going to the next".bg_red
+          fatal "Connection to #{uri} timed out, going to the next"
           return false
         rescue Errno::ECONNREFUSED
-          puts " [-] #{uri} refused our connection".bg_red
+          fatal "#{uri} refused our connection"
           return false
         rescue Net::HTTPBadResponse => e
-          puts " [-] Server gave to us an bad response: #{e}, going to the next".bold.yellow
+          bad_info "Server gave to us an bad response: #{e}, going to the next"
           return false
         rescue SocketError => e
-          puts " [-] Network error while trying to test (#{e}), going to the next".bg_red
+          bad_info "Network error while trying to test (#{e}), going to the next"
           return false
         rescue Timeout::Error
-          puts " [-] Site took a very long time to download, giving up of this site and going to the next".bg_red
+          bad_info " Site took a very long time to download, giving up of this site and going to the next"
           return false
         end
 
         if http_res.code =~ /200/
-          puts " [+] #{uri} is ok!".green.bold
-          puts " [*] DoomCaster will check for vulnerability".red.bold
+          good "#{uri} is ok!"
+          info "DoomCaster will check for vulnerability."
 
           vuln_uri = uri.clone
 
           params = get_parameters(uri.query)
 
           if params.length > 1
-            puts " [+] This URI has more than one parameter! Doomcaster will check for vulnerabilities in each one.".green.bold
+            good "This URI has more than one parameter! Doomcaster will check for vulnerabilities in each one."
           end
 
           vuln_detected = false
@@ -254,19 +254,19 @@ of 28605 dorks.
                 http_res = do_http_get(vuln_uri)
               end
             rescue Timeout::Error
-              puts " [-] Site took a very long time to download, giving up of this site and going to the next".bg_red
+              bad_info "Site took a very long time to download, giving up of this site and going to the next"
               return false
-            rescue Net::NetReadTimeout
-              puts " [-] Connection timed out, going to the next".bg_red
+            rescue Net::ReadTimeout
+              fatal "Connection timed out, going to the next"
               return false
             end
 
             if check_sql_error(http_res.body)
-              puts " [+] The parameter #{param} of #{uri} seems vulnerable!".green.bold
+              good "The parameter #{param} of #{uri} seems vulnerable!"
               @vuln_sites << uri
               vuln_detected = true
             else
-              puts " [-] Parameter #{param} of #{uri} seems not vulnerable.".yellow.bold
+              bad_info "Parameter #{param} of #{uri} seems not vulnerable."
             end
           end
           return vuln_detected
@@ -278,30 +278,30 @@ of 28605 dorks.
                         end
 
           puts "Got a redirection to: #{redirection}".bold
-          loop do
-            print "Do you want to follow it? [y/n]: ".bold
-            answer = gets.chomp
-
-            if answer =~ /y/
-              encoded_redirection = URI.escape(redirection.to_s)
-              process_res(URI.parse(encoded_redirection))
-              break
-            elsif answer =~ /n/
-              puts " [*] Ok.".bold.red
-              break
-            else
-              puts "Invalid answer!".bg_red
+          redirect_processed = false
+          until redirect_processed
+            ask "Do you want to follow it? [y/n]: " do |answer|
+              if answer =~ /y/
+                encoded_redirection = URI.escape(redirection.to_s)
+                process_res(URI.parse(encoded_redirection))
+                redirect_processed = true
+              elsif answer =~ /n/
+                puts " [*] Ok.".bold.red
+                redirect_processed = true
+              else
+                puts "Invalid answer!".bg_red
+              end
             end
           end
         elsif http_res.code =~ /404/
-          puts " [-] #{uri} is not ok: received a 404".bg_red
+          fatal "#{uri} is not ok: received a 404"
         else
-          puts " [-] DoomCaster received an unhandable HTTP status: #{http_res.code}".yellow.bold
+          bad_info "DoomCaster received an unhandable HTTP status: #{http_res.code}"
         end
       end
 
       def start_dork_scan(dork, num = 1)
-        puts " [*] Starting dork scanning...".green.bold
+        good "Starting dork scanning..."
         query = "inurl:" + dork
         domain_cache = []
         
@@ -327,27 +327,29 @@ of 28605 dorks.
 
         if count != num
           puts ""
-          puts " [-] It seems that this dork didn't give us sufficient results.".bold.yellow +
-            " It may be because this dork is unefficient and Google cannot provide ".bold.yellow +
-            "a good number of sites to test. I recommend you to try other dorks.".bold.yellow
+
+          message =  "It seems that this dork didn't give us sufficient results." +
+            " It may be because this dork is unefficient and Google cannot provide "  +
+            "a good number of sites to test. I recommend you to try other dorks."
+
+          bad_info message
           
           if count > 0
             puts ""
-            puts " [+] But anyway, some vulnerable sites were found!".green.bold
-            puts " [+] The sites are:".green.bold
+            good "But anyway, some vulnerable sites were found!"
+            good "The sites are:"
             @vuln_sites.each { |site|
-              puts " [+] #{site}".green.bold
+              good site
             }
           end
-          
           return
         end
         
-        puts "\n [*] Scanning complete, #{count} of sites that seem vulnerable were found," +
-          "as you asked.".green.bold
-        puts " [*] The sites are:".green.bold
+        good "Scanning complete, #{count} of sites that seem vulnerable were found," +
+          "as you asked."
+        good "The sites are:"
         @vuln_sites.each { |site|
-          puts " [+] #{site}".green.bold
+          good site
         }
       end
 
@@ -359,9 +361,7 @@ of 28605 dorks.
       end
         
       def custom_dork
-        print " [*] Digit your custom dork: ".red.bold
-        dork = gets.chomp
-        dork
+        ask_no_question "Digit your custom dork: "
       end
 
       def load_wordlist(list_path, list)
