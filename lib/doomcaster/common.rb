@@ -2,14 +2,6 @@
 
 require 'colorize'
 
-class Array
-  def contains_all? other
-    other = other.dup
-    each{|e| if i = other.index(e) then other.delete_at(i) end}
-    other.empty?
-  end
-end
-
 class String
   def bg_red
     self.colorize(:background => :red, :color => :white)
