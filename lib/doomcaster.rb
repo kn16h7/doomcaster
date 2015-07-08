@@ -48,7 +48,7 @@ module DoomCaster
         
         opts.on("--tools", "Show available tools") do
           DoomCaster::tools.keys.each { |key|
-            puts "#{key}\t#{DoomCaster::modules[key].desc.simple}"
+            puts "#{key}\t#{DoomCaster::tools[key].desc.simple}"
           }
           exit
         end
