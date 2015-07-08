@@ -330,6 +330,15 @@ of 28605 dorks.
           puts " [-] It seems that this dork didn't give us sufficient results.".bold.yellow +
             " It may be because this dork is unefficient and Google cannot provide ".bold.yellow +
             "a good number of sites to test. I recommend you to try other dorks.".bold.yellow
+
+          if count > 0
+            puts " [+] But anyway, some vulnerable sites were found!"
+            puts " [+] The sites are:"
+            @vuln_sites.each { |site|
+              puts " [+] #{site}".green.bold
+            }
+          end
+          
           return
         end
         
