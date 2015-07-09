@@ -2,6 +2,10 @@ module DoomCaster
   module Tools
     require 'google-search'
     require 'timeout'
+
+    class GoogleSearch
+      
+    end
     
     class DorkScanner < NetTool
       def initialize
