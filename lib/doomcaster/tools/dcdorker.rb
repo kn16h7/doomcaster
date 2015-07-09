@@ -34,7 +34,6 @@ of 28605 dorks.
 
       def run
         @parser.parse!
-        @vuln_sites = []
         
         list_path = unless self.options[:list_path]
                       ENV['HOME'] + "/.doomcaster/wordlists/dork-lists"
@@ -67,14 +66,15 @@ of 28605 dorks.
 
       def parse_opts(parser)
         @parser = parser
-        
         @parser.separator ""
         @parser.separator "dork-scanner options:"
+        
+        super(@parser)
         
         @parser.on("--list-path <path>", "The path where to look up for dork lists") do |path|
           self.options[:list_path] = path
         end
-        
+
         @parser.on('--manual', 'Display a detailed explanation of this tool') do
           puts self.desc.detailed
           exit

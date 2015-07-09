@@ -98,7 +98,8 @@ Then just fill the file with the possible pages, one per line.
 
         @parser.separator ""
         @parser.separator "admin-finder options:\n"
-        
+
+        super(@parser)
         @parser.on("--host <host>", "The target host to be scanned") do |host|
           self.options[:host] = host
         end
@@ -178,13 +179,17 @@ Then just fill the file with the possible pages, one per line.
           f.each_line do |line|
             next if line =~ /^NAME:/
             
-            complete_uri = site + line
+            complete_uri = site + line.chomp
             normal_info "Trying: #{complete_uri}"
 
             res = nil
             begin
               Timeout::timeout(60) do
-                res = Net::HTTP.get_response(URI(complete_uri))
+                res = if @proxy
+                        do_http_get(complete_uri, @proxy)
+                      else
+                        do_http_get(complete_uri)
+                      end
               end
             rescue Timeout::Error
               fatal "Request timed out"
@@ -222,7 +227,7 @@ Then just fill the file with the possible pages, one per line.
               good "Good luck from SuperSenpai.\n"
               found = true
             else
-              bad_info "Not Found <- #{complete_uri}\n"
+              bad_info "Not Found <- #{complete_uri}"
             end
 
             if found
