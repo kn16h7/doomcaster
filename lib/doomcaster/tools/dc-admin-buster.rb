@@ -231,6 +231,7 @@ Then just fill the file with the possible pages, one per line.
               ask "Desired page found. Do you want to continue? [y/n]: " do |answer|
                 if answer =~ /y/
                   puts "Ok...".green.bold
+                  found = false
                 elsif answer =~ /n/
                   puts "Ok!".green.bold
                   return
