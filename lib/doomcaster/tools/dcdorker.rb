@@ -218,7 +218,7 @@ of 28605 dorks.
         http_res = nil
         begin
           Timeout::timeout(60) do
-            http_res = do_http_get(uri, 10)
+            http_res = do_http_get(uri, @proxy)
           end
         rescue Errno::ETIMEDOUT
           fatal "Connection to #{uri} timed out, going to the next"

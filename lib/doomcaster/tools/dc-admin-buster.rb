@@ -185,11 +185,7 @@ Then just fill the file with the possible pages, one per line.
             res = nil
             begin
               Timeout::timeout(60) do
-                res = if @proxy
-                        do_http_get(complete_uri, @proxy)
-                      else
-                        do_http_get(complete_uri)
-                      end
+                res = do_http_get(complete_uri, @proxy)
               end
             rescue Timeout::Error
               fatal "Request timed out"
