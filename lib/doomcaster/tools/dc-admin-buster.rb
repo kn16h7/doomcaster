@@ -204,7 +204,7 @@ Then just fill the file with the possible pages, one per line.
                           complete_uri.chomp + location
                         end
               
-              normal_info "Possible admin page found in: #{new_uri}. But jurandir will check!"
+              normal_info "Possible admin page found in: #{new_uri}. But DoomCaster will check!"
               new_res =  Net::HTTP.get_response(URI(new_uri))
               
               if check_site(new_res)
