@@ -164,31 +164,32 @@ Then just fill the file with the possible pages, one per line.
       def search_generic(site, list_file_name)
         found = false
 
+        list_path = @options[:list_path]
+        start_path = expand_list_path(list_path)
         list_file = nil
-        Dir.foreach(self.options[:list_path]).select { |entry|
-          !File.directory?(entry)
+        Dir.foreach(start_path).select { |entry|
+          !File.directory?(File.expand_path(entry, start_path))
         }.select { |entry|
-          !File.readable?(entry)
+          File.readable?(File.expand_path(entry, start_path))
         }.select { |file|
-          file = File.open(self.options[:list_path] + '/' + file, "r")
+          file = File.open(File.expand_path(file, list_path), "r")
           begin
             file.readline =~ /NAME:/
           ensure
             file.close
           end
         }.collect { |file|
-          file = File.open(self.options[:list_path] + '/' + file, "r")
+          file = File.open(File.expand_path(file, list_path), "r")
           begin
             name = file.readline.split(" ").drop(1).join(' ')
             if name == list_file_name
-              list_file = self.options[:list_path] + '/' + File.basename(file)
+              list_file = list_path + '/' + File.basename(file)
               break
             end
           ensure
             file.close
           end
         }
-
         
         File.open(list_file) do |f|
           f.each_line do |line|
@@ -261,7 +262,7 @@ Then just fill the file with the possible pages, one per line.
         end
       end
 
-      def get_lists(list_path)
+      def expand_list_path(list_path)
         absolute_path = if list_path.start_with?('/')
                           list_path
                         else
@@ -276,11 +277,16 @@ Then just fill the file with the possible pages, one per line.
           end
         end
 
+        absolute_path
+      end
+
+      def get_lists(list_path)
         begin
+          absolute_path = expand_list_path(list_path)
           Dir.foreach(absolute_path).select { |entry|
-            !File.directory?(entry)
+            !File.directory?(File.expand_path(entry, absolute_path))
           }.select { |entry|
-            File.readable?(entry)
+            File.readable?(File.expand_path(entry, absolute_path))
           }.select { |file|
             file_handle = File.open(File.expand_path(file, absolute_path), "r")
             begin
@@ -289,7 +295,7 @@ Then just fill the file with the possible pages, one per line.
               file_handle.close
             end
           }.collect { |file|
-             file = File.open(File.expand_path(file, absolute_path), "r")
+            file = File.open(File.expand_path(file, absolute_path), "r")
             begin
               file.readline.split(" ").drop(1).join(' ')
             rescue
