@@ -36,15 +36,28 @@ of 28605 dorks.
                                  })
       end
 
+      def print_manual
+        puts desc.detailed
+      end
+
       def run
+        list_path = unless @options[:list_path]
+                      ENV['HOME'] + "/.doomcaster/wordlists/dork-lists"
+                    else
+                      @options[:list_path]
+                    end
+
+        if get_dork_lists(list_path).empty?
+          if $execution_mode == :once
+            die "Cannot perform a dork scan: No lists available.".bg_red
+          else
+            fatal "Cannot perform a dork scan: No lists available."
+          end
+        end
+        
         system('clear')
         $shell_pwd = 'dcdorker'
         Arts::dcdorker_banner
-        list_path = unless self.options[:list_path]
-                      ENV['HOME'] + "/.doomcaster/wordlists/dork-lists"
-                    else
-                      self.options[:list_path]
-                    end       
         
         domain = get_domain
         dork = get_dork(list_path)
@@ -75,11 +88,11 @@ of 28605 dorks.
         super(@parser)
         
         @parser.on("--list-path <path>", "The path where to look up for dork lists") do |path|
-          self.options[:list_path] = path
+          @options[:list_path] = path
         end
 
         @parser.on('--manual', 'Display a detailed explanation of this tool') do
-          puts self.desc.detailed
+          print_manual
           exit if $execution_mode == :once
         end
         
@@ -403,12 +416,18 @@ of 28605 dorks.
       end
 
       def get_dork_lists(list_path)
-        Dir.foreach(list_path).select { |entry|
-          !File.directory?(entry)
+        absolute_path = if list_path.start_with?('/')
+                          list_path
+                        else
+                          File.expand_path(list_path)
+                        end
+        
+        Dir.foreach(absolute_path).select { |entry|
+          !File.directory?(File.expand_path(entry, absolute_path))
         }.select {  |entry|
-          !File.readable?(entry)
+          File.readable?(File.expand_path(entry, absolute_path))
         }.select { |file|
-          file = File.open(list_path + '/' + file, 'r')
+          file = File.open(File.expand_path(file, absolute_path), 'r')
           begin
             file.readline =~ /NAME:/
           rescue
@@ -416,7 +435,7 @@ of 28605 dorks.
             file.close
           end
         }.collect { |file|
-          file_handle  = File.open(list_path + '/' + file, 'r')
+          file_handle  = File.open(File.expand_path(file, absolute_path), 'r')
           begin
             file_handle.readline.split(" ").drop(1).join(" ")
           rescue

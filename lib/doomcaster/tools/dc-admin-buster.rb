@@ -28,7 +28,7 @@ Then just fill the file with the possible pages, one per line.
       end
 
       def print_manual
-        desc.detailed
+        puts desc.detailed
       end
 
       def print_help
@@ -256,7 +256,7 @@ Then just fill the file with the possible pages, one per line.
                 else
                   bad_info "Invalid answer! DoomCaster will consider this as a no."
                   return
-                end                
+                end
               end
             end
           end

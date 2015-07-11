@@ -65,6 +65,7 @@ module DoomCaster
               next
             else
               what_tool.run
+              $shell_pwd = 'toolkit'
             end
           rescue UnknownToolError
             fatal "Unknown command or tool: #{command}."
