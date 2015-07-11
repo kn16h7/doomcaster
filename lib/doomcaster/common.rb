@@ -6,6 +6,10 @@ class String
   def bg_red
     self.colorize(:background => :red, :color => :white)
   end
+
+  def orange
+    "\e[38;5;208m#{self}\e[00m"
+  end
 end
 
 module DoomCaster
@@ -36,11 +40,19 @@ module DoomCaster
       raise "Not implemented"
     end
 
+    def print_manual
+      raise "Not implemented"
+    end
+
+    def print_help
+      raise "Not implemented"
+    end
+
     def run
       raise "Not implemented"
     end
 
-    def parse_opts(parser)
+    def parse_opts(parser, args = ARGV)
       raise "Not implemented"
     end
   end

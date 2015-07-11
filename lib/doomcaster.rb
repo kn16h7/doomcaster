@@ -8,11 +8,105 @@ module DoomCaster
   VERSION = '1.8.8'
 
   require 'optparse'
+
+  class ToolKitSession < Thread
+    include Output
+    
+    COMMANDS = ['back', 'quit', 'help']
+    HELP = {
+            'back' => 'Back to main menu',
+            'quit' => 'Quit script',
+            'help' => 'This help message'
+           }
+    
+    def initialize
+      super {
+             Thread.stop
+            }
+    end
+    
+    def run
+      Arts::toolkit
+      $shell_pwd = 'toolkit'
+      ended = false
+      
+      until ended
+        shell
+        user_input = gets.chomp
+        parts = user_input.split(" ")
+        command = parts[0]
+        args = parts.drop(1)
+        pure_args = args.clone
+        
+        if COMMANDS.include?(command)
+          case command
+          when 'back'
+            ended = true
+          when 'quit'
+            quit
+          when 'help'
+            HELP.each { |key, value|
+              puts "#{key}\t#{value}".red.bold
+            }
+
+            puts ""
+            puts "Tools:".red.bold
+            DoomCaster::tools.keys.each { |key|
+              puts "#{key}\t#{DoomCaster::tools[key].desc.simple}".red.bold
+            }
+          end
+        else
+          begin
+            parser = OptionParser.new
+            what_tool = DoomCaster::get_tool(command)
+            what_tool.parse_opts(parser, args)
+
+            if pure_args.include?('--help') || pure_args.include?('--manual')
+              next
+            else
+              what_tool.run
+            end
+          rescue UnknownToolError
+            fatal "Unknown command or tool: #{command}."
+          end
+        end
+      end
+    end
+
+    
+  end
   
   class Application
+    extend Output
+
+    COMMANDS = ['arsenal', 'toolkit', 'help', 'procedures', 'contact', 'quit']
+    COMMANDS_ROUTINES = {
+                         'arsenal' => lambda {
+                           Arts::arsenal
+                         },
+                         'toolkit' => lambda {
+                           system('clear')
+                           t = ToolKitSession.new
+                           t.run
+                           Application.interactive_run
+                         },
+                         'help' => lambda {
+                           Arts.help
+                         },
+                         'procedures' => lambda {
+                           fatal "Not implemented yet!"
+                         },
+                         'contact' => lambda {
+                           
+                         },
+                         'quit' => lambda {
+                           quit
+                         }
+                        }
+    
     def Application.setup
       trap('INT') do
-        puts "Exiting (user interrupt)..".red.bold
+        puts "Exiting (user interrupt)".red.bold
         exit
       end
     end
@@ -34,19 +128,21 @@ module DoomCaster
         opts.on("--tool <tool>", "What tool will be used") do |tool|
           options[:tool] = tool
 
+          if options[:tool]
+            $execution_mode = :once
+          else
+            $execution_mode = :interactive
+          end
+
           begin
             what_tool = DoomCaster::get_tool(options[:tool], options[:tool_opts])
             what_tool.parse_opts(main_parser)
           rescue UnknownToolError
-            unless options[:tool]
-              DoomCaster::die "ERROR: No tool specified!".bg_red
-            else
-              DoomCaster::die "ERROR: Unknown tool: #{options[:tool]}".bg_red
-            end
+            DoomCaster::die "ERROR: Unknown tool: #{options[:tool]}".bg_red
           end
         end
         
-        opts.on("--tools", "Show available tools") do
+        opts.on("--arsenal", "Show available tools") do
           DoomCaster::tools.keys.each { |key|
             puts "#{key}\t#{DoomCaster::tools[key].desc.simple}"
           }
@@ -59,7 +155,7 @@ module DoomCaster
         end
 
         opts.on("--version", "Print the version and exit") do
-          puts "DoomCaster Version #{VERSION}..."
+          puts "DoomCaster Version #{VERSION}"
           exit
         end
       end
@@ -67,11 +163,27 @@ module DoomCaster
       main_parser.parse!
 
       unless what_tool
-        DoomCaster::die "ERROR: No tool given!".bg_red
+        interactive_run
+      else
+        what_tool.run
       end
+    end
+
+    def Application.interactive_run
+      $shell_pwd = 'main_menu'
+      DoomCaster::banner
+      $ended = false
+      info "Welcome to DoomCaster! To get a list of commands, digit help."
       
-      DoomCaster::banner      
-      what_tool.run
+      until $ended
+        shell
+        command = gets.chomp
+        if COMMANDS.include?(command)
+          COMMANDS_ROUTINES[command].call
+        else
+          fatal "Unknown command: #{command}"
+        end
+      end
     end
   end
 end

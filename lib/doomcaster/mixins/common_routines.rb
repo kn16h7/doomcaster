@@ -26,6 +26,15 @@ module DoomCaster
       puts " [+] #{msg}".bold.green
     end
 
+    def shell
+      print "==(#{$shell_pwd})> ".red.bold
+    end
+
+    def quit
+      Arts::quit_banner
+      Thread.exit
+    end
+
     def ask(question, &block)
       puts question.bold
       print "==> ".bold

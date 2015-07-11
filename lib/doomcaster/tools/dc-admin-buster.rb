@@ -27,8 +27,17 @@ Then just fill the file with the possible pages, one per line.
                                  })
       end
 
+      def print_manual
+        desc.detailed
+      end
+
+      def print_help
+        puts @parser
+      end
+      
       def run
-        @parser.parse!
+        system('clear')
+        Arts::dc_admin_buster_banner
         site = self.options[:host]
         list = self.options[:list]
 
@@ -93,7 +102,7 @@ Then just fill the file with the possible pages, one per line.
         search_generic(site, list)
       end
 
-      def parse_opts(parser)
+      def parse_opts(parser, args = ARGV)
         @parser = parser
 
         @parser.separator ""
@@ -113,14 +122,16 @@ Then just fill the file with the possible pages, one per line.
         end
 
         @parser.on("--help", "Print this help message") do
-          puts @parser
-          exit
+          print_help
+          exit if $execution_mode == :once
         end
 
         @parser.on("--manual", "Print a detailed help message") do
-          puts self.desc.detailed
-          exit
+          print_manual
+          exit if $execution_mode == :once
         end
+        
+        @parser.parse!(args)
       end
 
       private

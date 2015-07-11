@@ -37,15 +37,14 @@ of 28605 dorks.
       end
 
       def run
-        @parser.parse!
-        
+        system('clear')
+        $shell_pwd = 'dcdorker'
+        Arts::dcdorker_banner
         list_path = unless self.options[:list_path]
                       ENV['HOME'] + "/.doomcaster/wordlists/dork-lists"
                     else
                       self.options[:list_path]
-                    end
-        
-        info "Welcome to the DoomCaster Dork Scanner!"
+                    end       
         
         domain = get_domain
         dork = get_dork(list_path)
@@ -56,7 +55,7 @@ of 28605 dorks.
         amount = nil
         loop do
           begin
-            ask "How many vulnerable sites do you want??" do |answer|
+            ask "How many vulnerable sites do you want?" do |answer|
               amount = Integer(answer)
             end
             break
@@ -68,7 +67,7 @@ of 28605 dorks.
         start_dork_scan(complete_dork, amount)
       end
 
-      def parse_opts(parser)
+      def parse_opts(parser, args = ARGV)
         @parser = parser
         @parser.separator ""
         @parser.separator "dork-scanner options:"
@@ -81,13 +80,15 @@ of 28605 dorks.
 
         @parser.on('--manual', 'Display a detailed explanation of this tool') do
           puts self.desc.detailed
-          exit
+          exit if $execution_mode == :once
         end
         
         @parser.on("--help", "This help message") do
           puts @parser
-          exit
+          exit if $execution_mode == :once
         end
+        
+        @parser.parse!(args)
       end
 
       private
