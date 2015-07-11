@@ -36,19 +36,29 @@ Then just fill the file with the possible pages, one per line.
       end
       
       def run
-        system('clear')
-        Arts::dc_admin_buster_banner
-        site = self.options[:host]
-        list = self.options[:list]
+        site = @options[:host]
+        list = @options[:list]
 
-        list_path = unless self.options[:list_path]
+        list_path = unless @options[:list_path]
                       ENV['HOME'] + "/.doomcaster/wordlists/admin-lists"
                      else
-                      self.options[:list_path]
+                      @options[:list_path]
                     end
         
-        self.options[:list_path] = list_path || self.options[:list_path]
+        @options[:list_path] = list_path || @options[:list_path]
         lists = get_lists(list_path)
+
+        if lists.empty?
+          if $execution_mode == :once
+            die "Cannot scan site: No list available.".bg_red
+          else
+            fatal "Cannot scan site: No list available. "
+            return
+          end
+        end
+
+        system('clear')
+        Arts::dc_admin_buster_banner
         
         unless site
           message = "Enter the website you want to scan "
@@ -56,16 +66,7 @@ Then just fill the file with the possible pages, one per line.
           site = ask_no_question message
         end
         
-        unless list
-          if lists.empty?
-            if $execution_mode == :once
-              die "Cannot scan site: No list available.".bg_red
-            else
-              fatal "Cannot scan site: No list available. "
-              return
-            end
-          end
-          
+        unless list          
           print "\n"
           info "Enter the list you want to use."
           info "The available lists are:\n"
@@ -90,7 +91,7 @@ Then just fill the file with the possible pages, one per line.
             end
           end
         else
-          unless lists.include?(self.options[:list])
+          unless lists.include?(@options[:list])
             fatal "Cannot scan site: The list you have specified with --list is unknown."
             return
           end
@@ -114,15 +115,15 @@ Then just fill the file with the possible pages, one per line.
 
         super(@parser)
         @parser.on("--host <host>", "The target host to be scanned") do |host|
-          self.options[:host] = host
+          @options[:host] = host
         end
 
         @parser.on("--list <list>", "The list to be used") do |list|
-          self.options[:list] = list
+          @options[:list] = list
         end
 
         @parser.on("--list-path <path>", "The path where to look up for lists") do |path|
-          self.options[:list_path] = path
+          @options[:list_path] = path
         end
 
         @parser.on("--help", "Print this help message") do
