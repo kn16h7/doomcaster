@@ -58,8 +58,12 @@ Then just fill the file with the possible pages, one per line.
         
         unless list
           if lists.empty?
-            fatal "Cannot scan site: No list available"
-            exit 1
+            if $execution_mode == :once
+              die "Cannot scan site: No list available.".bg_red
+            else
+              fatal "Cannot scan site: No list available. "
+              return
+            end
           end
           
           print "\n"
@@ -258,26 +262,44 @@ Then just fill the file with the possible pages, one per line.
       end
 
       def get_lists(list_path)
-        Dir.foreach(list_path).select { |entry|
-          !File.directory?(entry)
-        }.select { |entry|
-          !File.readable?(entry)
-        }.select { |file|
-          file = File.open(list_path + '/' + file, "r")
-          begin
-            file.readline =~ /NAME:/
-          ensure
-            file.close
+        absolute_path = if list_path.start_with?('/')
+                          list_path
+                        else
+                          File.expand_path(list_path)
+                        end
+
+        unless File.directory?(absolute_path)
+          if $execution_mode == :once
+            die "list_path is not a directory!".bg_red
+          else
+            fatal "list_path is not a directory!"
           end
-        }.collect { |file|
-          file = File.open(list_path + '/' + file, "r")
-          begin
-            file.readline.split(" ").drop(1).join(' ')
-          rescue
-          ensure
-            file.close
-          end
-        }
+        end
+
+        begin
+          Dir.foreach(absolute_path).select { |entry|
+            !File.directory?(entry)
+          }.select { |entry|
+            File.readable?(entry)
+          }.select { |file|
+            file_handle = File.open(File.expand_path(file, absolute_path), "r")
+            begin
+              file_handle.readline =~ /NAME:/
+            ensure
+              file_handle.close
+            end
+          }.collect { |file|
+             file = File.open(File.expand_path(file, absolute_path), "r")
+            begin
+              file.readline.split(" ").drop(1).join(' ')
+            rescue
+            ensure
+              file.close
+            end
+          }
+        rescue Errno::ENOENT
+          die "Cannot perform a scan: list_path points to a inexistent directory."
+        end
       end
     end
   end
