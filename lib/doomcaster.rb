@@ -5,7 +5,7 @@ require 'doomcaster/common'
 require 'doomcaster/tools'
 
 module DoomCaster
-  VERSION = '1.8.8'
+  VERSION = '1.8.9'
 
   require 'optparse'
 
