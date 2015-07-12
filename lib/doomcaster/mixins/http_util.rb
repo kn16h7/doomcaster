@@ -13,17 +13,17 @@ module DoomCaster
       end
     end
 
-    def build_get_req(uri)
+    def build_get_req(uri, headers = nil)
       if uri.path && uri.query
-        Net::HTTP::Get.new(uri.path + '?' + uri.query)
+        Net::HTTP::Get.new(uri.path + '?' + uri.query, headers)
       elsif uri.path
-        Net::HTTP::Get.new(uri.path)
+        Net::HTTP::Get.new(uri.path, headers)
       else
-        Net::HTTP.Get.new('/')
+        Net::HTTP.Get.new('/', headers)
       end
     end
     
-    def do_http_get(uri, proxy_info = nil)
+    def do_http_get(uri, headers = nil, proxy_info = nil)
       uri = URI.parse(URI.escape(uri)) unless uri.is_a?(URI)
 
       if proxy_info

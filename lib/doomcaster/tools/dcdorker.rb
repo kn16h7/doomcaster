@@ -1,13 +1,67 @@
 module DoomCaster
   module Tools
     require 'google-search'
+    require 'nokogiri'
     require 'timeout'
-
-    class GoogleSearch
-      
-    end
     
     class DorkScanner < NetTool
+
+      class GoogleSearch
+        include DoomCaster::HttpUtils
+        
+        BASE_URI = 'http://www.google.com/search?'.freeze
+        USER_AGENTS = %w{
+        Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10; rv:33.0) Gecko/20100101 Firefox/33.0
+        Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2227.1 Safari/537.36
+        Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)
+        Opera/9.80 (X11; Linux i686; Ubuntu/14.10) Presto/2.12.388 Version/12.16
+        Mozilla/5.0 (Macintosh; U; PPC Mac OS X 10_5_8; ja-jp) AppleWebKit/533.20.25 (KHTML, like Gecko) Version/5.0.4 Safari/533.20.27
+        }
+        
+        attr_accessor :start
+        attr_accessor :query
+        attr_accessor :num
+        
+        def initialize(opts = {})
+          @query = opts[:query]
+          @num = opts[:num] || 200
+          @start = opts[:start] || 0
+        end
+        
+        def do_google_search
+          params = ["q=#{@query}", "num=#{@num}", "start=#{@start}"]
+          complete_uri = BASE_URI + params.join("&")
+          res = do_http_get(complete_uri, {'User-Agent' => random_user_agent})
+          puts res
+
+          res_body = case res
+                     when Net::HTTPOK
+                       res.body
+                     when Net::HTTPFound
+                       location = res['Location']
+                       redir = if location.is_a?(URI)
+                                 location
+                               else
+                                 URI.parse(URI.escape(location))
+                               end
+                       
+                       new_res = do_http_get(redir, {'User-Agent' => random_user_agent})
+                       puts new_res.body
+                       new_res.body
+                     end
+          
+          handle = Nokogiri::HTML(res_body)
+          handle.css('.r a').map { |link| link['href'] }
+        end
+
+        private
+        #We need to do this because for some reason Google does not delivers us
+        #clean URIs when the user agent is not a known Browser.
+        def random_user_agent
+          USER_AGENTS[rand(USER_AGENTS.length - 1)]
+        end
+      end
+      
       def initialize
         super('dcdorker', {})
         @vuln_sites = []
@@ -232,7 +286,7 @@ of 28605 dorks.
         http_res = nil
         begin
           Timeout::timeout(60) do
-            http_res = do_http_get(uri, @proxy)
+            http_res = do_http_get(uri, proxy_info: @proxy)
           end
         rescue Errno::ETIMEDOUT
           fatal "Connection to #{uri} timed out, going to the next"

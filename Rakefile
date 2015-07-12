@@ -5,6 +5,7 @@ task default: ['test', 'package']
 desc "Perform tests."
 task :test do
   ruby 'test/common_test.rb'
+  ruby 'test/dcdorker_google_search_test.rb'
 end
 
 desc "Build the project in a distributable zip."
