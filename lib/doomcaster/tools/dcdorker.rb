@@ -451,7 +451,7 @@ of 28605 dorks.
             if count == num
               puts "\n"
               on_scan_complete(count)
-              break
+              return
             end
           end
         rescue IOError
@@ -478,7 +478,7 @@ of 28605 dorks.
             if count == num
               puts "\n"
               on_scan_complete(count)
-              break
+              return
             end
           end
           on_scan_failed

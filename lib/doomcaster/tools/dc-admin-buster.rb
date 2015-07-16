@@ -248,18 +248,17 @@ Then just fill the file with the possible pages, one per line.
             if found
               warn "WARNING: I recommend you to check if the page is really what you want before!"
 
-              ask "Desired page found. Do you want to continue? [y/n]: " do |answer|
-                if answer =~ /y/
+              ask "Desired page found. Do you want to continue? [y/n]: ", ['y','n'] do |opts|
+                opts.on('y') do
                   puts "Ok...".green.bold
                   found = false
-                elsif answer =~ /n/
+                end
+                opts.on('n') do
                   puts "Ok!".green.bold
-                  return
-                else
-                  bad_info "Invalid answer! DoomCaster will consider this as a no."
                   return
                 end
               end
+              
             end
           end
         end
