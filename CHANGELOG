@@ -1,3 +1,7 @@
+1.9.0
+	-- Now dc-dork-scan can use direct searches on Google to perform a scan
+	-- Small fixes.
+
 1.8.9
 	-- New ascii-art oriented interface with a simple command line.
 	-- Complete proxy support in two tools.
