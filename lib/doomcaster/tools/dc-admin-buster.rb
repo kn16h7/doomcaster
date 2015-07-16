@@ -40,19 +40,26 @@ Then just fill the file with the possible pages, one per line.
         list = @options[:list]
 
         list_path = unless @options[:list_path]
-                      ENV['HOME'] + "/.doomcaster/wordlists/admin-lists"
-                     else
+                      @options[:list_path] = ENV['DOOMCASTER_HOME'] + "/wordlists/admin-lists"
+                      @options[:list_path]
+                    else
                       @options[:list_path]
                     end
         
-        @options[:list_path] = list_path || @options[:list_path]
         lists = get_lists(list_path)
 
         if lists.empty?
           if $execution_mode == :once
             die "Cannot scan site: No list available.".bg_red
           else
-            fatal "Cannot scan site: No list available. "
+            fatal "Cannot scan site: No list available."
+            return
+          end
+        end
+
+        if @options[:list]
+          unless lists.include?(@options[:list])
+            fatal "Cannot scan site: The list you have specified with --list is unknown."
             return
           end
         end
@@ -89,11 +96,6 @@ Then just fill the file with the possible pages, one per line.
             rescue ArgumentError
               puts " Invalid input!".bg_red
             end
-          end
-        else
-          unless lists.include?(@options[:list])
-            fatal "Cannot scan site: The list you have specified with --list is unknown."
-            return
           end
         end
         
@@ -202,7 +204,7 @@ Then just fill the file with the possible pages, one per line.
             res = nil
             begin
               Timeout::timeout(60) do
-                res = do_http_get(complete_uri, proxy_info: @proxy)
+                res = do_http_get(complete_uri, nil, @proxy)
               end
             rescue Timeout::Error
               fatal "Request timed out"

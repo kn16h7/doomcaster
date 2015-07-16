@@ -110,6 +110,8 @@ module DoomCaster
         puts "Exiting (user interrupt)".red.bold
         exit
       end
+
+      ENV['DOOMCASTER_HOME'] = ENV['HOME'] + '/.doomcaster'
     end
     
     def Application.run
@@ -153,6 +155,10 @@ module DoomCaster
         opts.on("--help", "Print this help message") do |opt|
           puts opts
           exit
+        end
+
+        opts.on('--doomcaster-home', 'The home directory where doomcaster will look for everything') do |opt|
+          ENV['DOOMCASTER_HOME'] = opt
         end
 
         opts.on("--version", "Print the version and exit") do

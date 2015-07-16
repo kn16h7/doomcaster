@@ -2,6 +2,38 @@ module DoomCaster
   require 'colorize'
   
   module Output
+    class AnswerArray
+      include Output
+      
+      def initialize(options)
+        @options = options
+        @option_handlers = {}
+      end
+
+      def on(opt, &block)
+        @option_handlers[opt] = block
+      end
+
+      def process_answer
+        loop do
+          begin
+            print "==> ".bold
+            answer = gets.chomp
+
+            unless @options.include?(answer)
+              fatal "Unknown option!"
+              next
+            else
+              @option_handlers[answer].call
+              break
+            end
+          rescue ArgumentError
+            fatal "Invalid Input!"
+          end
+        end
+      end
+    end
+   
     def info(msg)
       puts " [*] #{msg}".bold.red
     end
@@ -35,19 +67,22 @@ module DoomCaster
       Thread.exit
     end
 
-    def ask(question, &block)
+    def ask(question, opts, &block)
       puts question.bold
-      print "==> ".bold
-      answer = gets.chomp
       if block_given?
-        yield answer
+        array = AnswerArray.new(opts)
+        yield array
+        array.process_answer
       else
-        answer
+        print "==> ".bold
+        gets.chomp
       end
     end
 
     def ask_no_question(question, &block)
-      ask(" [*] #{question}".red, &block)
+      info "#{question}".red.bold
+      print "==> ".red.bold
+      gets.chomp
     end
 
     def die(msg)
