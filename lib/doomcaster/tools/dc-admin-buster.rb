@@ -236,6 +236,44 @@ Then just fill the file with the possible pages, one per line.
                 bad_info "False positive: #{new_uri} is not a valid admin page."
                 next
               end
+            elsif res.code =~ /401/
+              message = "A posssible admin page was found in: #{res}, but it seems that this site use a different"
+              message << " style of authentication for its administrators. And we are unautorized."
+              info message
+              info "I recommend you to see what this page is before back and answer the following question."
+              ask "What do you want to do? [(c)ontinue/(co)nsider as found]", ['c', 'co'] do |opts|
+                opts.on('c') do
+                  found = false
+                  next
+                end
+                
+                opts.on('co') do
+                  found = true
+                  good "Ok! I'll consider the admin page as found!"
+                  puts "\n"
+                  good "Found -> #{complete_uri}\n"
+                  good "Congratulation, this admin login page is working.\n"
+                  good "Good luck from SuperSenpai.\n"
+                end
+              end
+            elsif res.code =~ /403/
+              info "A possible admin page was found in: #{res}, but we are forbidden of visiting this page."
+              question = "What do you want to do? [(c)ontinue/(co)nsider as found]"
+              ask question, ['c', 'co'] do |opts|
+                opts.on('c') do
+                  found = false
+                  next
+                end
+
+                opts.on('co') do
+                  found = true
+                  good "Ok! I'll consider the admin page as found!"
+                  puts "\n"
+                  good "Found -> #{complete_uri}\n"
+                  good "Congratulation, this admin login page is working.\n"
+                  good "Good luck from SuperSenpai.\n"
+                end
+              end
             elsif res.code =~ /200/ && check_site(res)
               good "Found -> #{complete_uri}\n"
               good "Congratulation, this admin login page is working.\n"
