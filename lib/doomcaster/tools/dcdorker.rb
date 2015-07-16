@@ -441,7 +441,11 @@ of 28605 dorks.
             
             puts "\n"
             @domain_cache << uri.host
-            count += 1 if process_res(uri)
+            begin
+              count += 1 if process_res(uri)
+            rescue StandardError => e
+              fatal "Some unhandable error has happaned: #{e}"
+            end
 
             $stdout.flush
             if count == num
@@ -463,10 +467,12 @@ of 28605 dorks.
             next if @domain_cache.include?(uri.host)
             
             puts "\n"
-            processed += 1
             @domain_cache << uri.host
-            
+            begin
             count += 1 if process_res(uri)
+            rescue StandardError => e
+              fatal "Some unhandable error has happaned: #{e}"
+            end
             
             $stdout.flush
             if count == num
