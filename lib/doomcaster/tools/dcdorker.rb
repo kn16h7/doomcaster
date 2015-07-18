@@ -457,7 +457,7 @@ of 28605 dorks.
         end
       end
 
-      def do_dork_scan(query, num)
+      def do_dork_scan(query, num, start)
         google_constant = nil
         if @options[:google_mode] == 'api'
           google_constant = Google::Search::Web
@@ -469,7 +469,13 @@ of 28605 dorks.
           info "Doing a Google Search..."
           count = 0
           results = []
-          google = google_constant.new(:query => query)
+
+          if @options[:google_mode] == 'pure'
+            google = google_constant.new(:query => query, :start => start)
+          else
+            info "Ignoring opiton \"start\" because we are in API mode."
+            google = google_constant.new(:query => query)
+          end
 
           if @options[:google_method] == 'api'
             google.each do |res|
@@ -495,7 +501,7 @@ of 28605 dorks.
           results.map! do |res|
             sanitize_uri(res.uri)
           end
-          info "Results sanitized"
+          info "Results sanitized."
           
           bad_info "It seems that Google cannot give sufficient results." if results.length < num
           info "Processing results..."
@@ -537,7 +543,26 @@ of 28605 dorks.
             end
           end
         end
-        on_scan_failed
+        if @options[:google_mode] == 'api'
+          on_scan_failed
+        else
+          message = "It seems that our results has reached the limit and DoomCaster were "
+          message << "not able to get the amount of results you asked."
+          bad_info message
+
+          question = "What do you want to do? "
+          question << "[(e)nd the scanning, "
+          question << "(c)ontinue this times doing a search looking for the futher results]"
+          ask question, ['e', 'c'] do |opts|
+            opts.on('e') do
+              on_scan_failed
+              return
+            end
+            opts.on('c') do
+              do_dork_scan(query, num, start + 100)
+            end
+          end
+        end
       end
 
       def start_dork_scan(dork, num = 1)
@@ -549,7 +574,7 @@ of 28605 dorks.
           @options[:google_mode] = 'api'
         end
 
-        do_dork_scan(query, num)
+        do_dork_scan(query, num, 0)
       end
 
       def sanitize_dork(dork)
@@ -628,4 +653,3 @@ of 28605 dorks.
     end
   end
 end
-

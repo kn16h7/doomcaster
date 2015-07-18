@@ -1,6 +1,9 @@
-VERSION = '1.9.0'
+VERSION = '1.9.1'
 
 task default: ['test', 'package']
+
+#we need to do this because of google search test
+ENV['DOOMCASTER_HOME'] = '.'
 
 desc "Perform tests."
 task :test do
