@@ -7,6 +7,7 @@ module DoomCaster
     class DorkScanner < NetTool
 
       class GoogleSearch
+        include DoomCaster::Output
         include DoomCaster::HttpUtils
 
         ## API Method: Use Google API to perform searches.
@@ -16,11 +17,6 @@ module DoomCaster
         class GoogleBlockedSearchError < StandardError; end
         
         BASE_URI = 'https://www.google.com/search?'.freeze
-        USER_AGENTS = [
-                       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10; rv:33.0) Gecko/20100101 Firefox/33.0',
-                       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2227.1 Safari/537.36',
-                       'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)',
-                      ].freeze
         
         attr_accessor :start
         attr_accessor :query
@@ -44,9 +40,7 @@ module DoomCaster
                      when Net::HTTPFound
                        location = res['Location']
 
-                       if location.to_s =~ %r{https://ipv4.google.com/sorry/}
-                         raise GoogleBlockedSearchError
-                       end
+                       raise GoogleBlockedSearchError if location.to_s =~ %r{https://ipv4.google.com/sorry/}
                        
                        redir = if location.is_a?(URI)
                                  location
@@ -66,7 +60,18 @@ module DoomCaster
         #We need to do this because for some reason Google does not delivers us
         #clean URIs when the user agent is not a known Browser.
         def random_user_agent
-          USER_AGENTS[rand(USER_AGENTS.length - 1)]
+          user_agents_file = ENV['DOOMCASTER_HOME'] + '/user-agents'
+
+          unless File.exists?(user_agents_file)
+            if $execution_mode == :once
+              die "Cannot scan: File with list of user agents not found.".bg_red
+            else
+              fatal "Cannot scan: File with list of user agents not found."
+            end
+          end
+
+          user_agents = File.read(user_agents_file).split('\n')
+          user_agents[rand(user_agents.length - 1)]
         end
       end
       

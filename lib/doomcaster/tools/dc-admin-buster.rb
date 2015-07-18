@@ -170,8 +170,8 @@ Then just fill the file with the possible pages, one per line.
         list_path = @options[:list_path]
         start_path = expand_list_path(list_path)
         list_file = nil
-        Dir.foreach(start_path).select { |entry|
-          !File.directory?(File.expand_path(entry, start_path))
+        Dir.foreach(start_path).reject { |entry|
+          File.directory?(File.expand_path(entry, start_path))
         }.select { |entry|
           File.readable?(File.expand_path(entry, start_path))
         }.select { |file|
