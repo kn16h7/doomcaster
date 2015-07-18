@@ -10,6 +10,14 @@ module DoomCaster
         include DoomCaster::Output
         include DoomCaster::HttpUtils
 
+        class ResponseData
+          attr_reader :uri
+          
+          def initialize(uri)
+            @uri = uri
+          end
+        end
+
         ## API Method: Use Google API to perform searches.
         ## Pure Method: Perform searches directly on Google page.
         GOOGLE_METHODS = ['pure', 'api']
@@ -45,7 +53,11 @@ module DoomCaster
                        redir = if location.is_a?(URI)
                                  location
                                else
-                                 URI.parse(URI.escape(location))
+                                 begin
+                                   URI.parse(location)
+                                 rescue InvalidURIError
+                                   URI.parse(URI.escape(location))
+                                 end 
                                end
                        
                        new_res = do_http_get(redir, {'User-Agent' => user_agent, 'Host' => redir.host})
@@ -53,7 +65,11 @@ module DoomCaster
                      end
           
           handle = Nokogiri::HTML(res_body)
-          handle.css('.r a').map { |link| link['href'] }
+          results = []
+          handle.css('.r a').map { |link|
+            results << ResponseData.new(link['href'])
+          }
+          results
         end
 
         private
@@ -240,7 +256,7 @@ of 28605 dorks.
 
             size = in_memory_list.length
             what_dork = in_memory_list[Integer(rand(size))]
-        
+            
             info "Selected dork is #{what_dork}"
 
             ask "Do you want to use this dork? [y/n]", ['y', 'n'] do |opts|
@@ -302,17 +318,21 @@ of 28605 dorks.
       def clean_uri_if_strange(uri)
         str_uri = uri.to_s
         if str_uri =~ %r{/.*\?url=}
-          URI.parse(URI.escape(str_uri.gsub(/\/.*\?url=/ , '').gsub(/&sa=.*/, '')))
+          str_uri.gsub(/\/.*\?url=/ , '').gsub(/&sa=.*/, '')
+        elsif str_uri =~ %r{/url\?q=.*}
+          str_uri.gsub(%r{/url\?q=}, '').gsub(%r{&sa=.*}, '')
         else
-          uri
+          str_uri
         end
+      end
+
+      def sanitize_uri(uri)
+        uri = clean_uri_if_strange(uri)
+        URI.parse(URI.unescape(uri))
       end
 
       def process_res(uri)
         info "Processing #{uri}..."
-
-        uri = clean_uri_if_strange(uri)
-        
         info "Verifying if #{uri} is alright..."
 
         unless uri.query
@@ -391,12 +411,12 @@ of 28605 dorks.
           redirect_processed = false
           until redirect_processed
             ask "Do you want to follow it? [y/n]: ", ['y', 'n'] do |opts|
-             opts.on('y') do
+              opts.on('y') do
                 encoded_redirection = URI.escape(redirection.to_s)
                 process_res(URI.parse(encoded_redirection))
                 redirect_processed = true
               end
-            
+              
               opts.on('n') do
                 puts " [*] Ok.".bold.red
                 redirect_processed = true
@@ -437,11 +457,50 @@ of 28605 dorks.
         end
       end
 
-      def do_dork_scan_api(query, num)
-        count = 0
+      def do_dork_scan(query, num)
+        google_constant = nil
+        if @options[:google_mode] == 'api'
+          google_constant = Google::Search::Web
+        else
+          google_constant = GoogleSearch
+        end
+        
         begin
-          Google::Search::Web.new(:query => query, :safety_level => :off).each do |res|
-            uri = URI.parse(URI.encode(res.uri))
+          info "Doing a Google Search..."
+          count = 0
+          results = []
+          google = google_constant.new(:query => query)
+
+          if @options[:google_method] == 'api'
+            google.each do |res|
+              results << res
+            end
+          else
+            google.do_google_search.each do |res|
+              results << res
+            end
+          end
+          
+          info "Search completed, Google gave us #{results.length} results."          
+
+          if results.length == 0
+            if $execution_mode == :once
+              die "Cannot perform a scan: Google gave 0 results.".bg_red
+            else
+              fatal "Cannot perform a scan: Google gave 0 results."
+            end
+          end
+
+          info "Sanitizing results..."
+          results.map! do |res|
+            sanitize_uri(res.uri)
+          end
+          info "Results sanitized"
+          
+          bad_info "It seems that Google cannot give sufficient results." if results.length < num
+          info "Processing results..."
+          
+          results.each do |uri|
             next if @domain_cache.include?(uri.host)
             
             puts "\n"
@@ -449,7 +508,7 @@ of 28605 dorks.
             begin
               count += 1 if process_res(uri)
             rescue StandardError => e
-              fatal "Some unhandable error has happaned: #{e}"
+              fatal "Some unhandable error has happened: #{e}"
             end
 
             $stdout.flush
@@ -461,48 +520,24 @@ of 28605 dorks.
           end
         rescue IOError
           DoomCaster::die " [FATAL] I/O Error while scanning.".bg_red
-        end
-        on_scan_failed
-      end
-
-      def do_dork_scan_pure(query, num)
-        begin
-          GoogleSearch.new(:query => query, :num => 10 * num).do_google_search.each do |res|
-            uri = URI.parse(URI.escape(res))
-            next if @domain_cache.include?(uri.host)
-            
-            puts "\n"
-            @domain_cache << uri.host
-            begin
-            count += 1 if process_res(uri)
-            rescue StandardError => e
-              fatal "Some unhandable error has happaned: #{e}"
-            end
-            
-            $stdout.flush
-            if count == num
-              puts "\n"
-              on_scan_complete(count)
-              return
-            end
-          end
-          on_scan_failed
         rescue GoogleSearch::GoogleBlockedSearchError
           message = "Cannot perform a scan: Google detected our automated searches and has blocked "
           message << "it for a while."
           fatal message
-
+          
           ask "Do you want to try a scan with the Google API method? [y/n]", ['y', 'n'] do |opts|
             opts.on('y') do
+              @options[:google_mode] = 'api'
               do_dork_scan_api(query, num)
               return
             end
-
+            
             opts.on('n') do
               return
             end
           end
         end
+        on_scan_failed
       end
 
       def start_dork_scan(dork, num = 1)
@@ -514,11 +549,7 @@ of 28605 dorks.
           @options[:google_mode] = 'api'
         end
 
-        if @options[:google_mode] == 'api'
-          do_dork_scan_api(query, num)
-        else
-          do_dork_scan_pure(query, num)
-        end
+        do_dork_scan(query, num)
       end
 
       def sanitize_dork(dork)
@@ -527,7 +558,7 @@ of 28605 dorks.
         end
         dork
       end
-        
+      
       def custom_dork
         ask_no_question "Digit your custom dork: "
       end
@@ -597,3 +628,4 @@ of 28605 dorks.
     end
   end
 end
+

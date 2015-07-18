@@ -1,3 +1,12 @@
+1.9.1
+	-- Added options for choose if dcdorker will use Google API or perform
+	a direct search on Google.
+	-- Improved URI handling in dcdorker.
+	-- New wordlist: user-agents.
+	-- dc-admin-buster now can handle cases where the auth type is not
+	phpmyadmin or the like.
+	-- Small fixes.
+
 1.9.0
 	-- Now dc-dork-scan can use direct searches on Google to perform a scan
 	-- Small fixes.
