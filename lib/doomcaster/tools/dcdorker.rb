@@ -60,7 +60,7 @@ module DoomCaster
         #We need to do this because for some reason Google does not delivers us
         #clean URIs when the user agent is not a known Browser.
         def random_user_agent
-          user_agents_file = ENV['DOOMCASTER_HOME'] + '/user-agents'
+          user_agents_file = ENV['DOOMCASTER_HOME'] + '/wordlists/user-agents'
 
           unless File.exists?(user_agents_file)
             if $execution_mode == :once
