@@ -446,7 +446,6 @@ of 28605 dorks.
           "a good number of sites to test. I recommend you to try other dorks."
         
         bad_info message
-        
         if @vuln_sites.length > 0
           puts ""
           good "But anyway, some vulnerable sites were found!"
@@ -477,7 +476,7 @@ of 28605 dorks.
             google = google_constant.new(:query => query)
           end
 
-          if @options[:google_method] == 'api'
+          if @options[:google_mode] == 'api'
             google.each do |res|
               results << res
             end
@@ -539,6 +538,7 @@ of 28605 dorks.
             end
             
             opts.on('n') do
+              on_scan_failed
               return
             end
           end
