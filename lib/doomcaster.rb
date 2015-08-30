@@ -8,6 +8,7 @@ module DoomCaster
   VERSION = '1.9.1'
 
   require 'optparse'
+  require 'readline'
 
   class ToolKitSession < Thread
     include Output
@@ -21,8 +22,8 @@ module DoomCaster
     
     def initialize
       super {
-             Thread.stop
-            }
+        Thread.stop
+      }
     end
     
     def run
@@ -31,8 +32,7 @@ module DoomCaster
       ended = false
       
       until ended
-        shell
-        user_input = gets.chomp
+        user_input = Readline.readline("==(#{$shell_pwd})> ".red.bold, true)
         parts = user_input.split(" ")
         command = parts[0]
         args = parts.drop(1)
@@ -68,13 +68,13 @@ module DoomCaster
               $shell_pwd = 'toolkit'
             end
           rescue UnknownToolError
-            fatal "Unknown command or tool: #{command}."
+            fatal "Unknown command or tool: #{command}"
+          rescue OptionParser::InvalidOption => e
+            fatalize_or_die "#{e.message} for tool: #{what_tool.name}"
           end
         end
       end
     end
-
-    
   end
   
   class Application
@@ -111,7 +111,9 @@ module DoomCaster
         exit
       end
 
-      ENV['DOOMCASTER_HOME'] = ENV['HOME'] + '/.doomcaster'
+      unless ENV['DOOMCASTER_HOME']
+        ENV['DOOMCASTER_HOME'] = ENV['HOME'] + '/.doomcaster'
+      end
     end
     
     def Application.run
@@ -141,7 +143,8 @@ module DoomCaster
             what_tool = DoomCaster::get_tool(options[:tool], options[:tool_opts])
             what_tool.parse_opts(main_parser)
           rescue UnknownToolError
-            DoomCaster::die "ERROR: Unknown tool: #{options[:tool]}".bg_red
+            puts "ERROR: Unknown tool: #{options[:tool]}".bg_red
+            exit 1
           end
         end
         
@@ -157,7 +160,11 @@ module DoomCaster
           exit
         end
 
-        opts.on('--doomcaster-home', 'The home directory where doomcaster will look for everything') do |opt|
+        opts.on("--verbose", "Turn on verboseness") do |opt|
+          $verbose = true
+        end
+
+        opts.on('--doomcaster-home <home>', 'The home directory where doomcaster will look for everything') do |opt|
           ENV['DOOMCASTER_HOME'] = opt
         end
 
@@ -183,8 +190,7 @@ module DoomCaster
       info "Welcome to DoomCaster! To get a list of commands, digit help."
       
       until $ended
-        shell
-        command = gets.chomp
+        command = Readline.readline("==(#{$shell_pwd})> ".red.bold, true)
         if COMMANDS.include?(command)
           COMMANDS_ROUTINES[command].call
         else

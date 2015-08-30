@@ -7,8 +7,24 @@ class String
     self.colorize(:background => :red, :color => :white)
   end
 
+  def blue
+    "\e[1;34m#{self}\e[0m"
+  end
+
+  def pink
+    "\e[1;35m#{self}\e[0m"
+  end
+
   def orange
-    "\e[38;5;208m#{self}\e[00m"
+    "\e[38;5;208m#{self}\e[0m"
+  end
+
+  def String.remove_quotes_if_has_quotes(str)
+    if (str.start_with?('\'') && str.end_with?('\'')) ||
+        (str.start_with?('"') && str.end_with?('"'))
+      str = str[1..str.length - 2]
+    end
+    str
   end
 end
 
@@ -26,6 +42,7 @@ module DoomCaster
   
   class DoomCasterTool
     include DoomCaster::Output
+    extend DoomCaster::Output
     
     attr_reader :name
     attr_accessor :options
@@ -37,29 +54,22 @@ module DoomCaster
     end
 
     def desc
-      raise "Not implemented"
+      raise NotImplementedError
     end
-
-    def print_manual
-      raise "Not implemented"
-    end
-
-    def print_help
-      raise "Not implemented"
-    end
-
+    
     def run
-      raise "Not implemented"
+      raise NotImplementedError
     end
 
     def parse_opts(parser, args = ARGV)
-      raise "Not implemented"
+      raise NotImplementedError
     end
   end
 
   def DoomCaster.register_tools
     @@tools['dc-admin-buster'] = Tools::AdminFinder.new
     @@tools['dcdorker'] = Tools::DorkScanner.new
+    @@tools['dc-sqlmap-wrapper'] = Tools::SqlmapWrapper.new
   end
 
   def DoomCaster.get_tool(name, options = {})
@@ -79,9 +89,4 @@ module DoomCaster
     system 'clear'
     Arts.main_banner
   end
-  
-  def DoomCaster.die(msg)
-    puts msg
-    exit 1
-  end 
 end

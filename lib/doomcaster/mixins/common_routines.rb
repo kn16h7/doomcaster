@@ -58,8 +58,21 @@ module DoomCaster
       puts " [+] #{msg}".bold.green
     end
 
-    def shell
-      print "==(#{$shell_pwd})> ".red.bold
+    def verbose(msg)
+      puts " [v] #{msg}".blue if $verbose
+    end
+
+    def homossexual(msg)
+      puts " [^] #{msg}".pink
+    end
+
+    def fatalize_or_die(message)
+      if $execution_mode == :once
+        die message.bg_red
+      else
+        fatal message
+        true
+      end
     end
 
     def quit
@@ -67,7 +80,7 @@ module DoomCaster
       Thread.exit
     end
 
-    def ask(question, opts, &block)
+    def ask(question, opts)
       puts question.bold
       if block_given?
         array = AnswerArray.new(opts)

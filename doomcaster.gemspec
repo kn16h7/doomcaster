@@ -22,4 +22,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'google-search', ['~> 1.0.3']
   s.add_runtime_dependency 'colorize', ['~> 0.7.7']
   s.add_runtime_dependency 'nokogiri', ['~> 1.6.6.2']
+  s.add_runtime_dependency 'socksify', ['~> 1.6']    
 end

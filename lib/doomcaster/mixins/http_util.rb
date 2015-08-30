@@ -4,12 +4,14 @@ module DoomCaster
     require 'socksify/http'
 
     class ProxyInfo
-      attr_reader :addr, :port, :type
+      attr_reader :addr, :port, :type, :name, :password
 
-      def initialize(type, addr, port)
+      def initialize(type, addr, port, name = nil, pass = nil)
         @type = type
         @addr = addr
         @port = port
+        @name = name
+        @password = pass
       end
     end
 
@@ -31,8 +33,15 @@ module DoomCaster
 
       if proxy_info
         if proxy_info.type == 'HTTP'
-          Net::HTTP.start(uri.host, uri.port, proxy_info.addr, proxy_info.port, opts) do |http|
-            return http.request(build_get_req(uri, headers))
+          if proxy_info.name || proxy_info.password
+            Net::HTTP.start(uri.host, uri.port, proxy_info.addr, proxy_info.port,
+                            proxy_info.name, proxy_info.password, opts) do |http|
+              return http.request(build_get_req(uri, headers))
+            end
+          else
+            Net::HTTP.start(uri.host, uri.port, proxy_info.addr, proxy_info.port, opts) do |http|
+              return http.request(build_get_req(uri, headers))
+            end
           end
         elsif proxy_info.type == 'SOCKS'
           Net::HTTP.SOCKSProxy(proxy_info.addr, proxy_info.port).start(uri.host, uri.port, opts) do |http|

@@ -10,8 +10,8 @@ module DoomCaster
       public
       def desc
         DoomCaster::ToolDesc.new(
-                                 %q{A tool for find the administrative page in websites.
-                                 }, %Q{
+                                 %q{A tool for find the administrative page in websites},
+                                 %Q{
 This tool try to find the admin page of an website by brute force, based on a
 list and in some previous conditions. This tool will ask you for a site and an
 list for select a list and start.
@@ -26,41 +26,25 @@ NAME: name of your list
 Then just fill the file with the possible pages, one per line.
                                  })
       end
-
-      def print_manual
-        puts desc.detailed
-      end
-
-      def print_help
-        puts @parser
-      end
       
       def run
         site = @options[:host]
         list = @options[:list]
 
         list_path = unless @options[:list_path]
-                      @options[:list_path] = ENV['DOOMCASTER_HOME'] + "/wordlists/admin-lists"
+                      @options[:list_path] = File.expand_path('wordlists/admin-lists', ENV['DOOMCASTER_HOME'])
                       @options[:list_path]
                     else
                       @options[:list_path]
                     end
         
         lists = get_lists(list_path)
-
-        if lists.empty?
-          if $execution_mode == :once
-            die "Cannot scan site: No list available.".bg_red
-          else
-            fatal "Cannot scan site: No list available."
-            return
-          end
-        end
+        fatalize_or_die "Cannot scan site: No list available" if lists.empty?
 
         if @options[:list]
           unless lists.include?(@options[:list])
-            fatal "Cannot scan site: The list you have specified with --list is unknown."
-            return
+            message = "Cannot scan site: The list you have specified with --list is unknown"
+            return if fatalize_or_die message
           end
         end
 
@@ -73,7 +57,7 @@ Then just fill the file with the possible pages, one per line.
           site = ask_no_question message
         end
         
-        unless list          
+        unless list
           print "\n"
           info "Enter the list you want to use."
           info "The available lists are:\n"
@@ -115,6 +99,14 @@ Then just fill the file with the possible pages, one per line.
         @parser.separator ""
         @parser.separator "admin-finder options:\n"
 
+        args.map! do |arg|
+          if arg =~ /^--/
+            arg
+          end
+          
+          String.remove_quotes_if_has_quotes(arg)
+        end
+        
         super(@parser)
         @parser.on("--host <host>", "The target host to be scanned") do |host|
           @options[:host] = host
@@ -129,12 +121,12 @@ Then just fill the file with the possible pages, one per line.
         end
 
         @parser.on("--help", "Print this help message") do
-          print_help
+          puts @parser
           exit if $execution_mode == :once
         end
 
         @parser.on("--manual", "Print a detailed help message") do
-          print_manual
+          puts desc.detailed
           exit if $execution_mode == :once
         end
         
@@ -169,30 +161,7 @@ Then just fill the file with the possible pages, one per line.
 
         list_path = @options[:list_path]
         start_path = expand_list_path(list_path)
-        list_file = nil
-        Dir.foreach(start_path).reject { |entry|
-          File.directory?(File.expand_path(entry, start_path))
-        }.select { |entry|
-          File.readable?(File.expand_path(entry, start_path))
-        }.select { |file|
-          file = File.open(File.expand_path(file, list_path), "r")
-          begin
-            file.readline =~ /NAME:/
-          ensure
-            file.close
-          end
-        }.collect { |file|
-          file = File.open(File.expand_path(file, list_path), "r")
-          begin
-            name = file.readline.split(" ").drop(1).join(' ')
-            if name == list_file_name
-              list_file = list_path + '/' + File.basename(file)
-              break
-            end
-          ensure
-            file.close
-          end
-        }
+        list_file = File.expand_path(list_file_name, start_path)
         
         File.open(list_file) do |f|
           f.each_line do |line|
@@ -208,6 +177,9 @@ Then just fill the file with the possible pages, one per line.
               end
             rescue Timeout::Error
               fatal "Request timed out"
+              next
+            rescue SocketError
+              fatal "Network error while attempting"
               next
             end
             
@@ -267,7 +239,7 @@ Then just fill the file with the possible pages, one per line.
 
                 opts.on('co') do
                   found = true
-                  good "Ok! I'll consider the admin page as found!"
+                  good "Ok! DoomCaster will consider the admin page as found!"
                   puts "\n"
                   good "Found -> #{complete_uri}\n"
                   good "Congratulation, this admin login page is working.\n"
@@ -284,7 +256,7 @@ Then just fill the file with the possible pages, one per line.
             end
 
             if found
-              warn "WARNING: I recommend you to check if the page is really what you want before!"
+              warn "WARNING: It's recommended to you to check if the page is really what you want before!"
 
               ask "Desired page found. Do you want to continue? [y/n]: ", ['y','n'] do |opts|
                 opts.on('y') do
@@ -296,7 +268,6 @@ Then just fill the file with the possible pages, one per line.
                   return
                 end
               end
-              
             end
           end
         end
@@ -308,44 +279,20 @@ Then just fill the file with the possible pages, one per line.
                         else
                           File.expand_path(list_path)
                         end
-
-        unless File.directory?(absolute_path)
-          if $execution_mode == :once
-            die "list_path is not a directory!".bg_red
-          else
-            fatal "list_path is not a directory!"
-          end
-        end
-
+        
+        fatalize_or_die "list_path is not a directory!" unless File.directory?(absolute_path)
         absolute_path
       end
 
       def get_lists(list_path)
-        begin
-          absolute_path = expand_list_path(list_path)
-          Dir.foreach(absolute_path).select { |entry|
-            !File.directory?(File.expand_path(entry, absolute_path))
-          }.select { |entry|
-            File.readable?(File.expand_path(entry, absolute_path))
-          }.select { |file|
-            file_handle = File.open(File.expand_path(file, absolute_path), "r")
-            begin
-              file_handle.readline =~ /NAME:/
-            ensure
-              file_handle.close
-            end
-          }.collect { |file|
-            file = File.open(File.expand_path(file, absolute_path), "r")
-            begin
-              file.readline.split(" ").drop(1).join(' ')
-            rescue
-            ensure
-              file.close
-            end
-          }
-        rescue Errno::ENOENT
-          die "Cannot perform a scan: list_path points to a inexistent directory."
-        end
+        verbose "Getting list names from #{list_path}"
+        absolute_path = expand_list_path(list_path)
+        list_files = Dir.foreach(absolute_path).select { |file|
+          File.file?(File.expand_path(file, absolute_path))
+        }.select { |file|
+          File.readable?(File.expand_path(file, absolute_path))
+        }
+        list_files
       end
     end
   end

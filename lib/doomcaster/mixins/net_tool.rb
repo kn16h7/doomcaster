@@ -16,6 +16,10 @@ module DoomCaster
           type, addr, port = proxy.split(":")
           @proxy = ProxyInfo.new(type, addr, port)
         end
+
+        @parser.on("--proxy-cred <name:password>", "Set the credentials of the given proxy") do |proxy_creds|
+          @proxy.name, @proxy.password = proxy_creds.split(":")
+        end
       end
     end
   end
