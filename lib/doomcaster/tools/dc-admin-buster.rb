@@ -39,12 +39,11 @@ Then just fill the file with the possible pages, one per line.
                     end
         
         lists = get_lists(list_path)
-        fatalize_or_die "Cannot scan site: No list available" if lists.empty?
+        fail_exec self.name, "Cannot scan site: No list available" if lists.empty?
 
         if @options[:list]
           unless lists.include?(@options[:list])
-            message = "Cannot scan site: The list you have specified with --list is unknown"
-            return if fatalize_or_die message
+            fail_exec "Cannot scan site: The list you have specified with --list is unknown"
           end
         end
 
@@ -67,24 +66,29 @@ Then just fill the file with the possible pages, one per line.
           }
 
           loop do
-            begin
-              print "==> ".red.bold
-              idx = Integer(gets.chomp)
-
-              unless lists[idx]
-                puts " Unknown list!".bg_red
-              else
-                list = lists[idx]
-                break
-              end
-            rescue ArgumentError
-              puts " Invalid input!".bg_red
+            idx = read_num_from_user()
+            unless lists[idx]
+              puts " Unknown list!".bg_red
+            else
+              list = lists[idx]
+              break
             end
           end
         end
-        
-        site = "http://" + site if site !~ /^http:/
-        site = site + "/" if site !~ /\/$/
+
+        begin
+          site = URI.parse(site)
+        rescue URI::InvalidURIError
+          fail_exec "Cannot scan: #{site} is not a valid URL."
+        end
+
+        if site.scheme
+          if site.scheme != 'http' && site.scheme != 'https'
+            fail_exec "Cannot scan: URI does not point to a site"
+          end
+        else
+          site.scheme = 'http'
+        end
 
         puts "\n"
         info "The website: #{site}"
@@ -167,13 +171,32 @@ Then just fill the file with the possible pages, one per line.
           f.each_line do |line|
             next if line =~ /^NAME:/
             
-            complete_uri = site + line.chomp
-            normal_info "Trying: #{complete_uri}"
+            line = line.chomp
+            try_uri = site.clone
+            
+            if line =~ /\?/
+              path, query = line.split('?')
+              line = path
+              try_uri.query = query
+            end
 
+            if try_uri.path
+              if try_uri.path.end_with?('/') && line.start_with?('/')
+                line = line[1..-1]
+              elsif !try_uri.path.end_with?('/') && !line.start_with?('/')
+                line = '/' + line
+              end
+              try_uri.path += line
+            else
+              line = '/' + line unless line.start_with?('/')
+              try_uri.path = line
+            end
+            
+            normal_info "Trying: #{try_uri}"
             res = nil
             begin
               Timeout::timeout(60) do
-                res = do_http_get(complete_uri, nil, @proxy)
+                res = do_http_get(try_uri, nil, @proxy)
               end
             rescue Timeout::Error
               fatal "Request timed out"
@@ -184,19 +207,25 @@ Then just fill the file with the possible pages, one per line.
             end
             
             if res.code =~ /404/
-              bad_info "Not Found <- #{complete_uri}"
+              bad_info "Not Found <- #{try_uri}"
               next
             elsif res.code =~ /301/ || res.code =~ /302/
               location = res['Location']
 
-              new_uri = if location =~ /^http:/
-                          location
-                        else
-                          complete_uri.chomp + location
-                        end
+              new_uri = nil
+              if location.is_a?(URI)
+                new_uri = location
+                new_uri.scheme = 'http' unless new_uri.scheme
+              else
+                new_uri = URI.parse(location)
+                unless new_uri.host
+                  new_uri.host = try_uri.host
+                  new_uri.scheme = 'http'
+                end
+              end
               
               normal_info "Possible admin page found in: #{new_uri}. But DoomCaster will check!"
-              new_res =  Net::HTTP.get_response(URI(new_uri))
+              new_res = do_http_get(new_uri, nil, @proxy)
               
               if check_site(new_res)
                 good "Found -> #{new_uri}\n"
@@ -209,7 +238,7 @@ Then just fill the file with the possible pages, one per line.
                 next
               end
             elsif res.code =~ /401/
-              message = "A posssible admin page was found in: #{res}, but it seems that this site use a different"
+              message = "A posssible admin page was found in: #{try_uri}, but it seems that this site use a different"
               message << " style of authentication for its administrators. And we are unautorized."
               info message
               info "I recommend you to see what this page is before back and answer the following question."
@@ -223,13 +252,13 @@ Then just fill the file with the possible pages, one per line.
                   found = true
                   good "Ok! I'll consider the admin page as found!"
                   puts "\n"
-                  good "Found -> #{complete_uri}\n"
+                  good "Found -> #{try_uri}\n"
                   good "Congratulation, this admin login page is working.\n"
                   good "Good luck from SuperSenpai.\n"
                 end
               end
             elsif res.code =~ /403/
-              info "A possible admin page was found in: #{res}, but we are forbidden of visiting this page."
+              info "A possible admin page was found in: #{try_uri}, but we are forbidden of visiting this page."
               question = "What do you want to do? [(c)ontinue/(co)nsider as found]"
               ask question, ['c', 'co'] do |opts|
                 opts.on('c') do
@@ -241,22 +270,22 @@ Then just fill the file with the possible pages, one per line.
                   found = true
                   good "Ok! DoomCaster will consider the admin page as found!"
                   puts "\n"
-                  good "Found -> #{complete_uri}\n"
+                  good "Found -> #{try_uri}\n"
                   good "Congratulation, this admin login page is working.\n"
                   good "Good luck from SuperSenpai.\n"
                 end
               end
             elsif res.code =~ /200/ && check_site(res)
-              good "Found -> #{complete_uri}\n"
+              good "Found -> #{try_uri}\n"
               good "Congratulation, this admin login page is working.\n"
               good "Good luck from SuperSenpai.\n"
               found = true
             else
-              bad_info "Not Found <- #{complete_uri}"
+              bad_info "Not Found <- #{try_uri}"
             end
 
             if found
-              warn "WARNING: It's recommended to you to check if the page is really what you want before!"
+              warn "WARNING: It's recommended to you to check if the page is really what you want!"
 
               ask "Desired page found. Do you want to continue? [y/n]: ", ['y','n'] do |opts|
                 opts.on('y') do
@@ -280,7 +309,7 @@ Then just fill the file with the possible pages, one per line.
                           File.expand_path(list_path)
                         end
         
-        fatalize_or_die "list_path is not a directory!" unless File.directory?(absolute_path)
+        fail_exec "list_path is not a directory!" unless File.directory?(absolute_path)
         absolute_path
       end
 

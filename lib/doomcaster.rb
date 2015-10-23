@@ -176,10 +176,14 @@ module DoomCaster
 
       main_parser.parse!
 
-      unless what_tool
-        interactive_run
-      else
-        what_tool.run
+      begin
+        unless what_tool
+          interactive_run
+        else
+          what_tool.run
+        end
+      rescue ToolExecFailedError => e
+        bad "Execution of tool #{e.message} failed"
       end
     end
 

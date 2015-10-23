@@ -31,6 +31,9 @@ end
 module DoomCaster
   @@tools = {}
 
+  class ToolExecFailedError < StandardError
+  end
+
   class ToolDesc
     attr_reader :simple, :detailed
     
@@ -63,6 +66,11 @@ module DoomCaster
 
     def parse_opts(parser, args = ARGV)
       raise NotImplementedError
+    end
+
+    def fail_exec(msg)
+      fatalize_or_die msg
+      raise ToolExecFailedError, self.name
     end
   end
 

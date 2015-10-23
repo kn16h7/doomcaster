@@ -1,5 +1,6 @@
 module DoomCaster
   require 'colorize'
+  require 'readline'
   
   module Output
     class AnswerArray
@@ -17,8 +18,7 @@ module DoomCaster
       def process_answer
         loop do
           begin
-            print "==> ".bold
-            answer = gets.chomp
+            answer = Readline.readline( "==> ".bold, false)
 
             unless @options.include?(answer)
               fatal "Unknown option!"
@@ -87,15 +87,30 @@ module DoomCaster
         yield array
         array.process_answer
       else
-        print "==> ".bold
-        gets.chomp
+        Readline.readline( "==> ".bold, false)
       end
     end
 
-    def ask_no_question(question, &block)
+    def ask_no_question(question)
       info "#{question}".red.bold
-      print "==> ".red.bold
-      gets.chomp
+      Readline.readline( "==> ".red.bold, false)
+    end
+
+    def read_num_from_user(question = nil)      
+      puts question.red.bold if question
+      loop do
+        begin
+          idx = Integer(Readline.readline( "==> ".red.bold, false))
+          return idx
+        rescue ArgumentError
+          puts " Invalid input!".bg_red
+        end
+      end
+    end
+
+    def fail_tool_exec(tool_name, msg)
+      fatalize_or_die msg
+      raise ToolExecFailedError, tool_name
     end
 
     def die(msg)

@@ -29,7 +29,7 @@ module DoomCaster
       uri = URI.parse(URI.escape(uri)) unless uri.is_a?(URI)
 
       opts = {}
-      opts[:use_ssl] = true if uri.scheme =~ /https/
+      opts[:use_ssl] = true if uri.scheme == 'https'
 
       if proxy_info
         if proxy_info.type == 'HTTP'

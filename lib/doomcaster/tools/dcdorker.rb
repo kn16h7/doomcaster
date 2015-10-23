@@ -10,60 +10,38 @@ module DoomCaster
       class SearchEngine
         include DoomCaster::Output
         include DoomCaster::HttpUtils
-        
-        attr_reader :name
-
-        def initialize(opts = {})
-        end
 
         def perform_search
           raise NotImplementedError
         end
       end
 
-      class GoogleApiSerchEngine
-      end
-
-      class GooglePureSearchEngine
-      end
-
-      class BingSearchEngine
-      end
-
-      class YahooSearchEngine
-      end
-      
-      class GoogleSearch
-        include DoomCaster::Output
-        include DoomCaster::HttpUtils
-
-        class ResponseData
-          attr_reader :uri
-          
-          def initialize(uri)
-            @uri = uri
-          end
+      class GoogleApiSearchEngine < SearchEngine
+        def initialize(opts = {})
+          @query = opts[:query]
         end
-
-        ## API Method: Use Google API to perform searches.
-        ## Pure Method: Perform searches directly on Google page.
-        GOOGLE_METHODS = ['pure', 'api']
-
-        class GoogleBlockedSearchError < StandardError; end
         
+        def perform_search
+          result = []
+          Google::Search::Web.new(:query => @query).each do |res|
+            result << res.url
+          end
+          result
+        end
+      end
+
+      class GooglePureSearchEngine < SearchEngine
         BASE_URI = 'https://www.google.com/search?'.freeze
-        
-        attr_accessor :start
-        attr_accessor :query
-        attr_accessor :num
+
+        attr_accessor :query, :num, :start
         
         def initialize(opts = {})
           @query = opts[:query]
           @num = opts[:num] || 100
           @start = opts[:start] || 0
         end
-       
-        def do_google_search
+
+        def perform_search
           params = ["q=#{@query}", "num=#{@num}", "start=#{@start}"]
           complete_uri = BASE_URI + params.join("&")
           user_agent = random_user_agent
@@ -95,31 +73,89 @@ module DoomCaster
           
           handle = Nokogiri::HTML(res_body)
           results = []
-          handle.css('.r a').map { |link|
-            results << ResponseData.new(link['href'])
-          }
+          handle.css('.r a').each { |link| results << link['href'] }
+          results.map! { |link| sanitize_uri(link) }
           results
         end
 
         private
-        #We need to do this because for some reason Google does not delivers us
-        #clean URIs when the user agent is not a known Browser.
+        #Google sometimes do not give us normal URIs, but Google's URI, that
+        #is used by Google to track us
+        def clean_uri_if_is_track_uri(uri)
+          str_uri = uri.to_s
+          if str_uri =~ %r{/.*\?url=}
+            str_uri.gsub(/\/.*\?url=/ , '').gsub(/&sa=.*/, '')
+          elsif str_uri =~ %r{/url\?q=.*}
+            str_uri.gsub(%r{/url\?q=}, '').gsub(%r{&sa=.*}, '')
+          else
+            str_uri
+          end
+        end
+        
+        def sanitize_uri(uri)
+          uri = clean_uri_if_is_track_uri(uri)
+          unescaped = URI.unescape(uri).to_s
+          unescaped.gsub(/ /, '+')
+          URI.parse(unescaped)
+        end
+        
         def random_user_agent
           user_agents_file = ENV['DOOMCASTER_HOME'] + '/wordlists/user-agents'
-
+          
           unless File.exists?(user_agents_file)
             fatalize_or_die "Cannot scan: File with list of user agents not found."
           end
-
+          
           user_agents = File.read(user_agents_file).split('\n')
           user_agents[rand(user_agents.length - 1)]
         end
       end
       
+      class BingSearchEngine < SearchEngine
+        BASE_URI = 'http://www.bing.com/search?'
+        BASE_API_URI = 'http://api.bing.net/json.aspx'
+        MODES = ['pure', 'api']
+
+        attr_accessor :query, :mode, :appid, :first
+        
+        def initialize(opts = {})
+          @query = opts[:query]
+          @mode = opts[:mode] || 'pure'
+          @appid = opts[:appid]
+          @first = opts[:first] || 0
+        end
+
+        def perform_search
+          if @mode == 'api'
+          else
+            uri_query = ["q=#{@query}", "first=#{@first}", "filt=r"].join('&')
+            search_uri = URI.parse(BASE_URI + uri_query)
+
+            verbose "A Bing search will be made, the complete URI is #{search_uri.to_s}"
+
+            search_res = do_http_get(search_uri, {'User-Agent' => random_user_agent()})
+
+            links = []
+            Nokogiri::HTML(search_res.body).css('.b_algo .b_title h2 a').each { |link|
+              links << URI.parse(link)
+            }
+            links
+          end
+        end
+      end
+
+      class YahooSearchEngine < SearchEngine
+      end
+
+      SEARCH_ENGINES = {
+                        'google' => [GooglePureSearchEngine, GoogleApiSearchEngine],
+                        'bing' => BingSearchEngine,
+                        'Yahoo!' => nil
+                       }
+      
       def initialize
         super('dcdorker', {})
         @vuln_sites = []
-        @domain_cache = []
       end
       
       public
@@ -146,36 +182,39 @@ of 28605 dorks.
       end
 
       def run
-        if @options[:dork]
-          info "The dork you provided is: #{@options[:dork]}"
-          amount = get_vuln_site_num
-          start_dork_scan(@options[:dork], amount)
-        else
-          list_path = unless @options[:list_path]
-                        ENV['DOOMCASTER_HOME'] + "/wordlists/dork-lists"
-                      else
-                        @options[:list_path]
-                      end
-          
+        if @options.empty?
           system('clear')
-          $shell_pwd = 'dcdorker'
           Arts::dcdorker_banner
-          
-          domain = get_domain
-          dork = get_dork(list_path)
-          complete_dork = "site:#{domain} inurl:#{dork}"
-          
-          good "The complete dork is: #{complete_dork}"
-          amount = get_vuln_site_num
-          
-          start_dork_scan(complete_dork, amount)
         end
+
+        dork = unless @options[:dork]
+                 ask_no_question "Digit your dork"
+               else
+                 @options[:dork]
+               end
+        
+        vuln_amount = unless @options[:vuln_num]
+                        read_num_from_user("How many vulnerable hosts do you want?")
+                      else
+                        @options[:vuln_num]
+                      end
+
+        if !@options[:search_engine]
+          info "You have not given any search engine. Defaulting to Google."
+          @options[:search_engine] = 'google'
+        elsif @options[:search_engine] != 'google'
+          @engine = SEARCH_ENGINES[@options[:search_engine]].new()
+        end
+
+        process_search_engine_options()
+
+        start_dork_scan(dork, vuln_amount)
       end
       
       def parse_opts(parser, args = ARGV)
         @parser = parser
         @parser.separator ""
-        @parser.separator "dork-scanner options:"
+        @parser.separator "dcdorker options:"
 
         args.map! do |arg|
           String.remove_quotes_if_has_quotes(arg)
@@ -187,36 +226,29 @@ of 28605 dorks.
           @options[:dork] = dork
         end
 
-        @parser.on("--search-engines <se>", "What search engines you want to use") do |search_engines|
-          @options[:search_engines] = search_engines
+        @parser.on("--search-engine <se>", "What search engine you want to use") do |search_engines|
+          @options[:search_engine] = search_engines
         end
 
-        @parser.on("--dork-list <list>", "What dork list you want to use") do |list|
-          @options[:dork_list] = list
-        end       
-        
-        @parser.on("--list-path <path>", "The path where to look up for dork lists") do |path|
-          @options[:list_path] = path
+        @parser.on("--se-options <opts>", "Set custom options for the search engines available") do |se_opts|
+          @options[:se_options] = se_opts
         end
 
-        @parser.on("--google-method <method>", "What method use to perform searches on Google") do |opt|
-          @options[:google_method] = opt
-          
-          unless GoogleSearch::GOOGLE_METHODS.include?(opt)
-            message =  "Cannot perform a dork scan: Unknown method: #{opt}."
-            message << "The available modes are: api and pure."
-            fatalize_or_die(message)
-          end
+        @parser.on("--list-se", "List search engines available") do
+        end
+
+        @parser.on("--help-se-options", "List search engines available and its options") do
+        end
+
+        @parser.on("--vuln-num", "The number of vulnerable hosts you want to get") do |num|
+          @options[:vuln_num] = num
         end
 
         @parser.on("--output <file>", "File to put the found sites") do |opt|
           @options[:output_file] = opt
         end
 
-        dontgiveup_help_message =  "Continue increasing the \"start\" parameter "
-        dontgiveup_help_message << "in a Pure Google search while the asked number of vulnerable sites "
-        dontgiveup_help_message << "has not been reached."
-        @parser.on("--dont-giveup", dontgiveup_help_message) do |opt|
+        @parser.on("--dont-giveup", "Continue doing searches until reach the asked number of targets") do |opt|
           @options[:dont_giveup] = true
         end
           
@@ -234,246 +266,99 @@ of 28605 dorks.
       end
 
       private
-      def get_vuln_site_num
-        amount = nil
+      def start_dork_scan(dork, num = 1)
+        info "Starting dork scan..."
+
+        @engine.query = dork
+        found_hosts = []
+        domain_cache = []
         loop do
-          begin
-            answer = ask_no_question "How many vulnerable sites do you want?"
-            amount = Integer(answer)
-            break
-          rescue ArgumentError
-            fatal "Invalid Input!"
+          results = @engine.perform_search
+          results.each do |res|
+            unless domain_cache.include?(res.host)
+              @vuln_sites << res if check_vuln(res)
+            end
           end
+
+          
+          break unless @options[:dont_giveup] || found_hosts.length == num
         end
-        amount
+      end
+
+      def check_vuln(target)
       end
       
-      def get_domain
-        question  = "Digit the domain you want to scan (e.g. .com, .net, .org, etc). "
-        question << "If you don't care about the domain, just hit return."
-        ask_no_question question
-      end
+      def process_search_engine_options
+        return unless @options[:se_options]
 
-      def get_dork(list_path)
-        info "Select the dork list you want to use, the available lists are:"
-        lists = get_dork_lists(list_path)
-        puts ""
-        lists.each_index { |idx|
-          puts " [#{idx}] #{lists[idx]}".red.bold
-        }
-        info "Custom dork"
+        opts = {}
+        @options[:se_options].split(' ').each do |pair|
+          key, val = pair.split('=')
+          opts[key] = val
+        end
         
-        list = nil
-        what_dork = nil
-        custom = false
-        
-        loop do
-          begin
-            print " --> ".red.bold
-            choice = gets.chomp
-
-            if choice == '*'
-              what_dork = custom_dork
-              custom = true
-              break
-            end
-            
-            idx = Integer(choice)
-            
-            unless lists[idx]
-              puts " Unknown list!".bg_red
+        case @options[:search_engine]
+        when 'google'
+          if opts['mode']
+            case opts['mode']
+            when 'api'
+              @engine = SEARCH_ENGINES[@options[:search_engine]][1].new()
+            when 'direct'
+              @engine = SEARCH_ENGINES[@options[:search_engine]][0].new()
             else
-              list = lists[idx]
-              break
+              fail_exec "Invalid mode (#{opts['mode']}) for Search Engine: Google"
             end
-          rescue ArgumentError
-            puts " Invalid input!".bg_red
-          end
-        end
-
-        unless custom
-          info "Ok! Loading wordlist."
-          in_memory_list = load_dorklist(list_path, list)
-
-          stop = false
-          until stop
-            info "Selecting a random dork"
-
-            size = in_memory_list.length
-            what_dork = in_memory_list[Integer(rand(size))]
-            
-            info "Selected dork is #{what_dork}"
-
-            ask "Do you want to use this dork? [y/n]", ['y', 'n'] do |opts|
-              opts.on('y') do |opt|
-                stop = true
-              end
-              
-              opts.on('n') do |opt|
-                stop = false
-              end
-            end
-          end
-        end
-        what_dork
-      end
-      
-      def load_sql_errors_list
-        sql_list_file = ENV['DOOMCASTER_HOME'] + '/wordlists/sql-errors-list'
-        retval = []
-        file = File.open(sql_list_file)
-        begin
-          file.each_line do |line|
-            retval << line
-          end
-        rescue
-          file.close
-        end
-        retval
-      end
-
-      def check_sql_error(page_body)
-        errors = load_sql_errors_list
-        retval = false
-        
-        errors.each { |error|          
-          retval = true if page_body =~ Regexp.new(error.chomp)
-        }
-        
-        retval
-      end
-      
-      def get_parameters(query)
-        query.split("&")
-      end
-
-      def vuln_parameter(query, param)
-        chunks = query.split("&")
-        chunks.each_index { |idx|
-          if param == chunks[idx]
-            chunks[idx] << "'"
-            break
-          end
-        }
-        chunks.join("&")
-      end
-
-      #Google sometimes do not give us normal URIs, but Google's URI, that
-      #is used by Google to track
-      def clean_uri_if_strange(uri)
-        str_uri = uri.to_s
-        if str_uri =~ %r{/.*\?url=}
-          str_uri.gsub(/\/.*\?url=/ , '').gsub(/&sa=.*/, '')
-        elsif str_uri =~ %r{/url\?q=.*}
-          str_uri.gsub(%r{/url\?q=}, '').gsub(%r{&sa=.*}, '')
-        else
-          str_uri
-        end
-      end
-
-      def sanitize_uri(uri)
-        uri = clean_uri_if_strange(uri)
-        unescaped = URI.unescape(uri).to_s
-        unescaped.gsub(/ /, '+')
-        URI.parse(unescaped)
-      end
-
-      def process_res(uri)
-        info "Processing #{uri}..."
-        info "Verifying if #{uri} is alright..."
-
-        unless uri.query
-          bad_info "#{uri} lacks of a parameter to check vulnerability"
-          bad_info "DoomCaster will consider this site seems not vulnerable"
-          return
-        end
-        
-        http_res = nil
-        begin
-          Timeout::timeout(60) do
-            http_res = do_http_get(uri, nil, @proxy)
-          end
-        rescue Errno::ETIMEDOUT
-          fatal "Connection to #{uri} timed out, going to the next"
-          return
-        rescue Errno::ECONNREFUSED
-          fatal "#{uri} refused our connection"
-          return
-        rescue Net::HTTPBadResponse => e
-          bad_info "Server gave to us an bad response: #{e}, going to the next"
-          return
-        rescue SocketError => e
-          bad_info "Network error while trying to test (#{e}), going to the next"
-          return
-        rescue Timeout::Error
-          bad_info "Site took a very long time to download, giving up of this site and going to the next"
-          return
-        end
-
-        if http_res.code =~ /200/
-          good "#{uri} is ok!"
-          info "DoomCaster will check for vulnerability."
-
-          vuln_uri = uri.clone
-
-          params = get_parameters(uri.query)
-
-          if params.length > 1
-            good "This URI has more than one parameter! Doomcaster will check for vulnerabilities in each one."
+          else
+            info "Google mode not specified, defaulting to API"
+            @engine = SEARCH_ENGINES[@options[:search_engine]][1].new()
           end
 
-          params.each do |param|
-            vuln_uri.query = vuln_parameter(uri.query, param)
-
+          if opts['start']
             begin
-              Timeout::timeout(60) do
-                http_res = do_http_get(vuln_uri)
-              end
-            rescue Timeout::Error
-              bad_info "Site took a very long time to download, giving up of this site and going to the next"
-              return
-            rescue Net::ReadTimeout
-              fatal "Connection timed out, going to the next"
-              return
-            end
-
-            if check_sql_error(http_res.body)
-              good "The parameter #{param} of #{uri} seems vulnerable!"
-              @vuln_sites << uri
-            else
-              bad_info "Parameter #{param} of #{uri} seems not vulnerable."
+              @engine.start = Integer(opts['start'])
+            rescue ArgumentError
+              fail_exec "\"start\" parameter must be a number"
             end
           end
-        elsif http_res.code =~ /301/ || http_res.code =~ /302/
-          redirection = if http_res['Location'] =~ /^http:/
-                          http_res['Location']
-                        else
-                          uri + http_res['Location']
-                        end
 
-          puts "Got a redirection to: #{redirection}".bold
-          redirect_processed = false
-          until redirect_processed
-            ask "Do you want to follow it? [y/n]: ", ['y', 'n'] do |opts|
-              opts.on('y') do
-                encoded_redirection = URI.escape(redirection.to_s)
-                process_res(URI.parse(encoded_redirection))
-                redirect_processed = true
-              end
-              
-              opts.on('n') do
-                puts " [*] Ok.".bold.red
-                redirect_processed = true
+          if opts['num']
+            begin
+              @engine.start = Integer(opts['num'])
+            rescue ArgumentError
+              fail_exec "\"num\" parameter must be a number"
+            end
+          end
+        when 'bing'
+          case opts['mode']
+          when 'api'
+            unless opts['appid']
+              fail_exec "Bing API mode requires an AppID to perform searches."
+            end
+            @engine.appid = opts['appid']
+          when 'direct'
+            if opts['first']
+              begin
+                @engine.first = Integer(opts['first'])
+              rescue ArgumentError
+                fail_exec "\"first\" parameter must be a number"
               end
             end
           end
-        elsif http_res.code =~ /404/
-          fatal "#{uri} is not ok: received a 404"
-        else
-          bad_info "DoomCaster received an unhandable HTTP status: #{http_res.code}"
+        when 'yahoo'
         end
-      end
+      end      
 
+      def DorkScanner.random_user_agent
+        user_agents_file = ENV['DOOMCASTER_HOME'] + '/wordlists/user-agents'
+        
+        unless File.exists?(user_agents_file)
+          fatalize_or_die "Cannot scan: File with list of user agents not found."
+        end
+        
+        user_agents = File.read(user_agents_file).split('\n')
+        user_agents[rand(user_agents.length - 1)]
+      end
+      
       def on_scan_complete(count)
         good "Scanning complete, #{count} of sites that seem vulnerable were found," +
           "as you asked."
@@ -516,189 +401,6 @@ of 28605 dorks.
             }
           end
         end
-      end
-
-      def do_dork_scan(query, num, start)
-        curr_search_engine = nil
-        google_constant = nil
-        
-        if @options[:search_engines].include?('google') && @options[:google_method] == 'api'
-          google_constant = GoogleApiSearchEngine
-        else
-          google_constant = GooglePureSearchEngine
-        end
-
-        total_results = []
-        @options[:search_engines].each do |se|
-          
-        end
-        
-        begin
-          info "Doing a Google Search..."
-          results = []
-
-          if @options[:google_method] == 'pure'
-            google = google_constant.new(:query => query, :start => start, :num => num * 10)
-          else
-            verbose "Ignoring opiton \"start\" because we are in API mode."
-            google = google_constant.new(:query => query)
-          end
-
-          if @options[:google_method] == 'api'
-            google.each do |res|
-              results << res
-            end
-          else
-            google.do_google_search.each do |res|
-              results << res
-            end
-          end
-
-          if results.length == 0
-            fatalize_or_die "Cannot perform a scan: Google gave 0 results"
-          end
-
-          info "Search completed, Google gave us #{results.length} results"
-
-          info "Sanitizing results..."
-          results.map! do |res|
-            sanitize_uri(res.uri)
-          end
-          info "Results sanitized"
-          
-          bad_info "It seems that Google cannot give sufficient results" if results.length < num
-          info "Processing results..."
-          
-          results.each do |uri|
-            next if @domain_cache.include?(uri.host)
-            
-            puts "\n"
-            @domain_cache << uri.host
-            begin
-              process_res(uri)
-            rescue OpenSSL::SSL::SSLError => e
-              message = "Failed to process #{uri}: A SSL error was caught (#{e.message}). "
-              message << "Trying to process #{uri} without SSL"
-              fatal message
-              uri.scheme = 'http'
-              process_res(uri)
-            rescue StandardError
-              fatal "Some unhandable error was caught: #{e}"
-            end
-
-            $stdout.flush
-            if @vuln_sites.length == num
-              puts "\n"
-              on_scan_complete(count)
-              return
-            end
-          end
-        rescue IOError
-          fatalize_or_die "I/O Error while scanning"
-        rescue GoogleSearch::GoogleBlockedSearchError
-          message = "Cannot perform a scan: Google detected our automated searches and has blocked "
-          message << "it for a while."
-          fatal message
-          
-          ask "Do you want to try a scan with the Google API method? [y/n]", ['y', 'n'] do |opts|
-            opts.on('y') do
-              @options[:google_method] = 'api'
-              do_dork_scan(query, num, 0)
-              return
-            end
-            
-            opts.on('n') do
-              homossexual "You have given up"
-              return
-            end
-          end
-        end
-        
-        if @options[:google_method] == 'api'
-          on_scan_failed
-        elsif @options[:dont_giveup]
-          message = "Automatically doing a new search due to \"--dontgiveup\" option"
-          info message
-          do_dork_scan(query, num, start + 100)
-        else
-          message = "It seems that our results has reached the limit and DoomCaster were "
-          message << "not able to get the amount of vulnerable sites you asked"
-          bad_info message
-
-          question = "What do you want to do? "
-          question << "[(e)nd the scanning, "
-          question << "(c)ontinue this times doing a search looking for the futher results]"
-          ask question, ['e', 'c'] do |opts|
-            opts.on('e') do
-              on_scan_failed
-              return
-            end
-            opts.on('c') do
-              do_dork_scan(query, num, start + 100)
-            end
-          end
-        end
-      end
-
-      def start_dork_scan(dork, num = 1)
-        good "Starting dork scan..."
-        query = dork
-
-        unless @options[:search_engines]
-          info "You have not given any search engine. Defaulting to Google"
-          @options[:search_engines] = ['google']
-        end
-
-        if @options[:search_engines].include?('google') && !@options[:google_method]
-          info "Google method not specified. Defaulting to API"
-          @options[:google_method] = 'api'
-        end
-
-        do_dork_scan(query, num, 0)
-      end
-      
-      def custom_dork
-        ask_no_question "Digit your custom dork: "
-      end
-
-      def load_dorklist(list_path, list_name)
-        completed = false
-        Thread.new  do
-          until completed
-            print '.'.bold
-            sleep 1
-          end
-        end
-
-        retval = []
-        Dir.foreach(list_path).select { |entry|
-          File.file?(File.expand_path(entry, list_path))
-        }.each do |file|
-          name = file.to_s
-          if name == list_name
-            File.open(File.expand_path(file, list_path), 'r').each_line do |line|
-              retval << line
-            end
-            break
-          end
-        end
-
-        completed = true
-        retval
-      end
-
-      def get_dork_lists(list_path)
-        absolute_path = if Pathname.new(list_path).absolute?
-                          list_path
-                        else
-                          File.expand_path(list_path)
-                        end
-        
-        Dir.foreach(absolute_path).select { |entry|
-          File.file?(File.expand_path(entry, absolute_path))
-        }.select {  |entry|
-          File.readable?(File.expand_path(entry, absolute_path))
-        }
       end
     end
   end
