@@ -49,8 +49,7 @@ module DoomCaster
               puts "#{key}\t#{value}".red.bold
             }
 
-            puts ""
-            puts "Tools:".red.bold
+            puts "\nTools:".red.bold
             DoomCaster::tools.keys.each { |key|
               puts "#{key}\t#{DoomCaster::tools[key].desc.simple}".red.bold
             }
@@ -59,18 +58,26 @@ module DoomCaster
           begin
             parser = OptionParser.new
             what_tool = DoomCaster::get_tool(command)
-            what_tool.parse_opts(parser, args)
+
+            begin
+              what_tool.parse_opts(parser, args)
+            rescue StandardError => e
+              fatal "Error on command line parsing #{e}"
+              next
+            end
 
             if pure_args.include?('--help') || pure_args.include?('--manual')
               next
             else
-              what_tool.run
+              what_tool.run_tool
               $shell_pwd = 'toolkit'
             end
           rescue UnknownToolError
             fatal "Unknown command or tool: #{command}"
           rescue OptionParser::InvalidOption => e
-            fatalize_or_die "#{e.message} for tool: #{what_tool.name}"
+            fatal "#{e.message} for tool: #{what_tool.name}"
+          rescue ToolExecFailedError => e
+            fatal "Execution of tool #{what_tool.name} failed"
           end
         end
       end
@@ -80,7 +87,6 @@ module DoomCaster
   class Application
     extend Output
 
-    COMMANDS = ['arsenal', 'toolkit', 'help', 'procedures', 'contact', 'quit']
     COMMANDS_ROUTINES = {
                          'arsenal' => lambda {
                            Arts::arsenal
@@ -96,9 +102,6 @@ module DoomCaster
                          },
                          'procedures' => lambda {
                            fatal "Not implemented yet!"
-                         },
-                         'contact' => lambda {
-                           
                          },
                          'quit' => lambda {
                            quit
@@ -138,13 +141,12 @@ module DoomCaster
           else
             $execution_mode = :interactive
           end
-
+          
           begin
             what_tool = DoomCaster::get_tool(options[:tool], options[:tool_opts])
             what_tool.parse_opts(main_parser)
           rescue UnknownToolError
-            puts "ERROR: Unknown tool: #{options[:tool]}".bg_red
-            exit 1
+            fatalize_or_die "ERROR: Unknown tool: #{options[:tool]}"
           end
         end
         
@@ -165,7 +167,16 @@ module DoomCaster
         end
 
         opts.on('--doomcaster-home <home>', 'The home directory where doomcaster will look for everything') do |opt|
-          ENV['DOOMCASTER_HOME'] = opt
+          unless File.exists?(opt)
+            fatal "Specified DoomCaster home does not exist!"
+            exit 1
+          else
+            ENV['DOOMCASTER_HOME'] = opt
+          end
+        end
+
+        opts.on("--debug", "Turn on debug mode") do
+          $debug = true
         end
 
         opts.on("--version", "Print the version and exit") do
@@ -174,16 +185,26 @@ module DoomCaster
         end
       end
 
-      main_parser.parse!
+      begin
+        main_parser.parse!
+      rescue StandardError => e
+        fatal "Error on command line parsing: #{e}"
+        exit 1
+      end
 
+      verbose "DoomCaster launched at #{Time.new.inspect}"
+      verbose "DoomCaster home: #{ENV['DOOMCASTER_HOME']}"
+      verbose "DoomCaster current user: #{ENV['USER']}"
+      verbose "DoomCaster version: #{VERSION}"
+      
       begin
         unless what_tool
           interactive_run
         else
-          what_tool.run
+          what_tool.run_tool
         end
       rescue ToolExecFailedError => e
-        bad "Execution of tool #{e.message} failed"
+        fatal "Execution of tool #{e.message} failed"
       end
     end
 
@@ -195,7 +216,7 @@ module DoomCaster
       
       until $ended
         command = Readline.readline("==(#{$shell_pwd})> ".red.bold, true)
-        if COMMANDS.include?(command)
+        if COMMANDS_ROUTINES.keys.include?(command)
           COMMANDS_ROUTINES[command].call
         else
           fatal "Unknown command: #{command}"

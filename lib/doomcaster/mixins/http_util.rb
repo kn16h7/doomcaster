@@ -25,10 +25,9 @@ module DoomCaster
       end
     end
     
-    def do_http_get(uri, headers = nil, proxy_info = nil)
+    def do_http_get(uri, headers = nil, proxy_info = nil, opts = {})
       uri = URI.parse(URI.escape(uri)) unless uri.is_a?(URI)
 
-      opts = {}
       opts[:use_ssl] = true if uri.scheme == 'https'
 
       if proxy_info

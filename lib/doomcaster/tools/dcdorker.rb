@@ -11,43 +11,62 @@ module DoomCaster
         include DoomCaster::Output
         include DoomCaster::HttpUtils
 
+        def is_limited_res_se?
+          false
+        end
+        
         def perform_search
           raise NotImplementedError
         end
       end
 
       class GoogleApiSearchEngine < SearchEngine
+        attr_accessor :query, :size, :offset, :language,
+        
         def initialize(opts = {})
           @query = opts[:query]
+          @size = opts[:size]
+          @offset = opts[:offset]
+          @language = opts[:language]
+        end
+
+        def is_limited_res_se?
+          true
         end
         
         def perform_search
-          result = []
-          Google::Search::Web.new(:query => @query).each do |res|
-            result << res.url
+          info "Performing a search using Google API."
+
+          results = []
+          Google::Search::Web.new(:query => @query, :offset => @offset,
+                                  :size => @size).each do |res|
+            results << URI.parse(res.uri)
           end
-          result
+
+          info "Search complete. Google API yield #{results.length} results"
+          results
         end
       end
 
       class GooglePureSearchEngine < SearchEngine
         BASE_URI = 'https://www.google.com/search?'.freeze
 
-        attr_accessor :query, :num, :start
+        attr_accessor :query, :num, :offset
         
         def initialize(opts = {})
           @query = opts[:query]
           @num = opts[:num] || 100
-          @start = opts[:start] || 0
+          @offset = opts[:start] || 0
         end
 
         def perform_search
-          params = ["q=#{@query}", "num=#{@num}", "start=#{@start}"]
+          params = ["q=#{@query}", "num=#{@num}", "start=#{@offset}"]
           complete_uri = BASE_URI + params.join("&")
-          user_agent = random_user_agent
+          user_agent = DorkScanner::random_user_agent
           res = do_http_get(complete_uri, {'User-Agent' => user_agent})
 
-          verbose "A Google search will be done. The complete URL is #{complete_uri}"
+          info "Performing a Google Search."
+          verbose "The complete URL is #{complete_uri}"
           
           res_body = case res
                      when Net::HTTPOK
@@ -64,7 +83,7 @@ module DoomCaster
                                    URI.parse(location)
                                  rescue InvalidURIError
                                    URI.parse(URI.escape(location))
-                                 end 
+                                 end
                                end
                        
                        new_res = do_http_get(redir, {'User-Agent' => user_agent, 'Host' => redir.host})
@@ -75,12 +94,13 @@ module DoomCaster
           results = []
           handle.css('.r a').each { |link| results << link['href'] }
           results.map! { |link| sanitize_uri(link) }
+
+          info "Search complete. Pure Google gave us #{results}"
+          
           results
         end
 
         private
-        #Google sometimes do not give us normal URIs, but Google's URI, that
-        #is used by Google to track us
         def clean_uri_if_is_track_uri(uri)
           str_uri = uri.to_s
           if str_uri =~ %r{/.*\?url=}
@@ -98,17 +118,6 @@ module DoomCaster
           unescaped.gsub(/ /, '+')
           URI.parse(unescaped)
         end
-        
-        def random_user_agent
-          user_agents_file = ENV['DOOMCASTER_HOME'] + '/wordlists/user-agents'
-          
-          unless File.exists?(user_agents_file)
-            fatalize_or_die "Cannot scan: File with list of user agents not found."
-          end
-          
-          user_agents = File.read(user_agents_file).split('\n')
-          user_agents[rand(user_agents.length - 1)]
-        end
       end
       
       class BingSearchEngine < SearchEngine
@@ -116,22 +125,22 @@ module DoomCaster
         BASE_API_URI = 'http://api.bing.net/json.aspx'
         MODES = ['pure', 'api']
 
-        attr_accessor :query, :mode, :appid, :first
+        attr_accessor :query, :mode, :appid, :offset
         
         def initialize(opts = {})
           @query = opts[:query]
           @mode = opts[:mode] || 'pure'
           @appid = opts[:appid]
-          @first = opts[:first] || 0
+          @offset = opts[:offset] || 0
         end
 
         def perform_search
           if @mode == 'api'
           else
-            uri_query = ["q=#{@query}", "first=#{@first}", "filt=r"].join('&')
+            uri_query = ["q=#{@query}", "first=#{@offset}", "filt=r"].join('&')
             search_uri = URI.parse(BASE_URI + uri_query)
 
-            verbose "A Bing search will be made, the complete URI is #{search_uri.to_s}"
+            verbose "Performing a Bing search, the complete URI is #{search_uri.to_s}"
 
             search_res = do_http_get(search_uri, {'User-Agent' => random_user_agent()})
 
@@ -148,9 +157,11 @@ module DoomCaster
       end
 
       SEARCH_ENGINES = {
-                        'google' => [GooglePureSearchEngine, GoogleApiSearchEngine],
-                        'bing' => BingSearchEngine,
-                        'Yahoo!' => nil
+                        'google-api' => GoogleApiSearchEngine,
+                        'google-pure' => GooglePureSearchEngine,
+                        'bing-pure' => BingSearchEngine,
+                        'bing-api' => nil,
+                        'yahoo' => nil
                        }
       
       def initialize
@@ -181,7 +192,39 @@ of 28605 dorks.
                                  })
       end
 
-      def run
+      def before_run
+        if @options[:search_engine]
+          @options[:search_engine].each do |se|
+            unless SEARCH_ENGINES.keys.include?(se)
+              fail_exec "Cannot scan: Unknown search engine #{se}"
+            end
+          end
+        end
+
+        fail_exec "No check data was given" unless @options[:check_data]
+        
+        if @options[:check_data] !~ /^\$/
+          filename = if @options[:check_data] =~ /^@/
+                       @options[:check_data][1..-1]
+                     else
+                       @options[:check_data]
+                     end
+
+          if @options[:check_data] =~ /^@/
+            fail_exec "Specified list file #{filename} does not exist" unless File.exists?(filename)
+          else
+            fail_exec "Specified list file #{filename} does not exist" \
+              unless File.exists?(File.expand_path(filename, ENV['DOOMCASTER_HOME']))
+          end
+        end
+
+        if @options[:http_method]
+          fatalize_or_die "Unknown HTTP method: #{@options[:http_method]}" \
+            unless HTTP_METHODS.include?(@options[:http_method])
+        end
+      end
+
+      def do_run_tool
         if @options.empty?
           system('clear')
           Arts::dcdorker_banner
@@ -199,16 +242,17 @@ of 28605 dorks.
                         @options[:vuln_num]
                       end
 
-        if !@options[:search_engine]
-          info "You have not given any search engine. Defaulting to Google."
-          @options[:search_engine] = 'google'
-        elsif @options[:search_engine] != 'google'
-          @engine = SEARCH_ENGINES[@options[:search_engine]].new()
-        end
 
-        process_search_engine_options()
+        configure_timeout()
+        configure_follow_redirs()
+        configure_max_redir_depth()
+        configure_filtered_hosts()
+        configure_search_engines()
+        configure_check_data()
+        configure_http_settings()
+        configure_event_callbacks()
 
-        start_dork_scan(dork, vuln_amount)
+        run_dork_scan(dork, vuln_amount)
       end
       
       def parse_opts(parser, args = ARGV)
@@ -226,22 +270,102 @@ of 28605 dorks.
           @options[:dork] = dork
         end
 
-        @parser.on("--search-engine <se>", "What search engine you want to use") do |search_engines|
-          @options[:search_engine] = search_engines
-        end
+        @parser.on("--search-engines <se>", "What search engines you want to use") do |search_engines|
+          @options[:search_engines] = search_engines.split(',')
+       end
 
         @parser.on("--se-options <opts>", "Set custom options for the search engines available") do |se_opts|
           @options[:se_options] = se_opts
         end
 
         @parser.on("--list-se", "List search engines available") do
+          puts "The available search engines are:"
+          SEARCH_ENGINES.keys.each { |se| puts se }
+          exit if $execution_mode == :once
+        end
+
+        @parser.on("--check-data <list|value>", "The data DoomCaster will try to match inside the sites") do |opt|
+          @options[:check_data] = opt
+        end
+
+        @parser.on("--check-options <options>", "Additional options for the checking") do |opt|
+          @options[:check_options] = opt
+        end
+
+        @parser.on("--filtered-hosts <filtered-list>", "Set a list of filtered hosts from a file or a list\
+separed by comas") do |list|
+          @options[:filtered_hosts]
+        end
+
+        @parser.on("--max-redir-depth <num>", "Set the number of max redirection depth for a host") do |max|
+          begin
+            @options[:max_redir_depth] = Integer(max)
+          rescue ArgumentError
+            raise StandardError, "--max-redir-depth value must be a number!"
+          end
+        end
+
+        @parser.on("--follow-redirections [yes|no|ask]", "Set default operation when a redirection is found") do |opt|
+          @options[:follow_redirections] = opt
+        end
+
+        @parser.on("--disable-host-cache", "Makes DoomCaster test repeated hosts in a search result") do
+          @options[:disable_host_cache] = true
+        end
+
+        @parser.on("--timeout <time>", "The time DoomCaster will wait for a successfull connection") do |time|
+          begin
+            @options[:timeout] = Integer(time)
+          rescue ArgumentError
+            raise StandardError, "--timeout value must be a number!"
+          end          
+        end
+
+        @parser.on("--in-headers", "Look for the values in the HTTP headers of the response") do |opt|
+          @options[:in_headers] = opt
+        end
+
+        @parser.on("--in-body", "Look for the values in the body of the response") do |opt|
+          @options[:in_body] = opt
+        end
+
+        @parser.on("--on-vuln <action|cmd>", "Action to execute when a vulnerable site is detected") do |opt|
+          @options[:on_vuln] = opt
+        end
+
+        @parser.on("--on-not-vuln <cmd>", "Action to execute when a not vulnerable site is detected") do |opt|
+          @options[:on_not_vuln] = opt
+        end
+
+        uri_query_rplc_msg = "Specifies replacements for the values in the URI query obtained "
+        uri_query_rplc_msg << "from a search"
+        @parser.on("--uri-query-replace <new-query>", uri_query_rplc_msg) do |opt|
+          @options[:uri_query_replace] = true
+          @options[:uri_replaces] = opt
+        end
+
+        @parser.on("--http-method <method>", "What HTTP method use to do our requests") do |opt|
+          @options[:http_method] = opt
+        end
+
+        @parser.on("--http-headers <header=value,header=value,...>", "Hand-configure HTTP headers for our requests") do |opt|
+          @options[:http_headers] = opt
+        end
+
+        @parser.on("--http-body <body>", "The body of our requests") do |opt|
+          @options[:http_body]
         end
 
         @parser.on("--help-se-options", "List search engines available and its options") do
+          
         end
 
-        @parser.on("--vuln-num", "The number of vulnerable hosts you want to get") do |num|
-          @options[:vuln_num] = num
+        @parser.on("--vuln-num <num>", "The number of vulnerable hosts you want to get") do |num|
+          begin
+            @options[:vuln_num] = Integer(num)
+          rescue ArgumentError
+            raise StandardError, "--vuln-num value must be a number!"
+          end
         end
 
         @parser.on("--output <file>", "File to put the found sites") do |opt|
@@ -261,102 +385,447 @@ of 28605 dorks.
           puts @parser
           exit if $execution_mode == :once
         end
-        
+
         @parser.parse!(args)
-      end
+      end      
 
       private
-      def start_dork_scan(dork, num = 1)
+      def run_dork_scan(dork, num = 1)
         info "Starting dork scan..."
 
-        @engine.query = dork
-        found_hosts = []
-        domain_cache = []
+        @engines.each do |se|
+          se.query = dork
+        end
+
         loop do
-          results = @engine.perform_search
-          results.each do |res|
-            unless domain_cache.include?(res.host)
-              @vuln_sites << res if check_vuln(res)
-            end
+          results = []
+          @engines.each do |se|
+            results += se.perform_search
           end
-
           
-          break unless @options[:dont_giveup] || found_hosts.length == num
-        end
-      end
+          asked_num_reached = walk_results_list(results, num)
 
-      def check_vuln(target)
-      end
-      
-      def process_search_engine_options
-        return unless @options[:se_options]
-
-        opts = {}
-        @options[:se_options].split(' ').each do |pair|
-          key, val = pair.split('=')
-          opts[key] = val
-        end
-        
-        case @options[:search_engine]
-        when 'google'
-          if opts['mode']
-            case opts['mode']
-            when 'api'
-              @engine = SEARCH_ENGINES[@options[:search_engine]][1].new()
-            when 'direct'
-              @engine = SEARCH_ENGINES[@options[:search_engine]][0].new()
-            else
-              fail_exec "Invalid mode (#{opts['mode']}) for Search Engine: Google"
+          if se_list_only_cont_limited_ses && @options[:dont_giveup]
+            message = "Limit of results reached but number of asked vulnerable "
+            message << "hosts not, and it'll not possible to perform a new search "
+            message << "because the search engines you choose have a maximum limit "
+            message << "of results."
+            bad_info message
+            break
+          end
+          
+          if !asked_num_reached && @options[:dont_giveup]
+            message = "Limit of results reached but number of asked vulnerable "
+            message << "hosts not. Doing a new search"
+            info message
+            
+            @engines.each do |se|
+              se.offset = 100
             end
           else
-            info "Google mode not specified, defaulting to API"
-            @engine = SEARCH_ENGINES[@options[:search_engine]][1].new()
+            break
+          end
+        end
+        
+        if @vuln_sites.length == num
+          on_scan_complete(num)
+        else
+          on_scan_failed
+        end
+      end
+
+      def se_list_only_cont_limited_ses
+        contain = true
+        @engines.each { |se| contain = false unless se.is_limited_res_se? }
+        contain
+      end
+      
+      def walk_results_list(results, num)
+        domain_cache = []
+        results.each do |res|
+          if !domain_cache.include?(res.host) || @options[:disable_host_cache]
+            info "Testing host #{res}"
+            
+            if res.query && @options[:uri_query_replace]
+              res = perform_uri_replaces(res)
+            elsif !res.query && @options[:uri_query_replace]
+              info "URI #{res} has not any parameter to perform replacements. Therefore it will be ignored"
+              puts
+              next
+            end
+            
+            if check_vuln(res)
+              @vuln_sites << res
+              good "Host #{res} seems vulnerable!"
+
+              break if @vuln_sites.length == num
+            else
+              bad_info "Host #{res} seems to be not vulnerable"
+            end
+            domain_cache << res.host
+            puts
+          end
+        end
+
+        @vuln_sites.length == num
+      end
+      
+      def perform_uri_replaces(uri)
+        if @options[:uri_replaces]
+          new_params = []
+
+          if uri.query
+            uri.query.split('&').each do |pair|
+              pair = pair.split('=')
+              next if pair.length == 1
+              user_query = @options[:uri_replaces].clone
+              param_val = pair[1]
+              user_query.gsub!('%value%', param_val)
+              param_val = user_query
+              new_params << (pair[0] + '=' + param_val)
+            end
+          else
+            return uri
           end
 
-          if opts['start']
-            begin
-              @engine.start = Integer(opts['start'])
-            rescue ArgumentError
-              fail_exec "\"start\" parameter must be a number"
+          uri.query = new_params.join('&')
+        end
+        uri
+      end
+
+      def configure_timeout
+        @options[:timeout] = 60 unless @options[:timeout]
+      end
+      
+      def configure_follow_redirs
+        @options[:follow_redirections] = 'ask' unless @options[:follow_redirections]
+      end
+
+      def configure_max_redir_depth
+        @options[:max_redir_depth] = 3 unless @options[:max_redir_depth]
+      end
+
+      def configure_filtered_hosts
+        if @options[:filtered_hosts] && @options[:filtered_hosts] =~ /^@/
+          @filtered_hosts = []
+          File.open(@options[:filtered_hosts][1..-1]) do |f|
+            f.each_line { |host| @filtered_hosts << host }
+          end
+        elsif @options[:filtered_hosts]
+          @filtered_hosts = @options[:filtered_hosts].split(",")
+        end
+      end
+
+      def configure_check_data        
+        if @options[:check_data] =~ /^\$/
+          @options[:check_data] = @options[:check_data][1..-1]
+        elsif @options[:check_data] =~ /^@/
+          filename = @options[:check_data][1..-1].clone
+          @options[:check_data] = []
+          File.open(filename, 'r') do |f|
+            f.each_line do |line|
+              @options[:check_data] << line.chomp!
             end
+          end
+        else
+          filename = File.expand_path(@options[:check_data], ENV['DOOMCASTER_HOME'])
+          @options[:check_data] = []
+          File.open(filename, 'r') do |f|
+            f.each_line do |line|
+              @options[:check_data] << line.chomp!
+            end
+          end
+        end
+      end
+
+      HTTP_METHODS = [ 'GET', 'POST', 'HEAD', 'TRACE', 'CONNECT', 'OPTIONS' , 'PUT', 'DELETE' ]
+
+      def configure_http_settings
+        unless @options[:http_method]
+          verbose "HTTP method not given. Defaulting to GET."
+          @options[:http_method] = 'GET'
+        end
+
+        @options[:http_method].upcase!
+
+        headers_map = {}
+        if @options[:http_headers]
+          headers = @options[:http_headers].split(',')
+          headers.each do |pair|
+            name, val = pair.split('=')
+            headers_map[name] = val
           end
 
-          if opts['num']
-            begin
-              @engine.start = Integer(opts['num'])
-            rescue ArgumentError
-              fail_exec "\"num\" parameter must be a number"
+          @options[:http_headers] = headers_map
+        else
+          @options[:http_headers] = {}
+        end
+
+        if @options[:http_body]
+          if @options[:http_body] =~ /^@/
+            @options[:http_body] = File.read(@options[:http_body][1..-1])
+          end
+        end
+
+        if @options[:post_data]
+          if @options[:http_method] != 'POST'
+            info "Option --post-data is useless for HTTP GET method and will be ignored"
+            return
+          end
+
+          if @options[:http_body]
+            @options[:post_data] = @options[:http_body]
+          else
+            if @options[:post_data] =~ /^@/
+              @options[:post_data] = File.read(@options[:post_data][1..-1])
             end
           end
-        when 'bing'
-          case opts['mode']
-          when 'api'
-            unless opts['appid']
-              fail_exec "Bing API mode requires an AppID to perform searches."
-            end
-            @engine.appid = opts['appid']
-          when 'direct'
-            if opts['first']
-              begin
-                @engine.first = Integer(opts['first'])
-              rescue ArgumentError
-                fail_exec "\"first\" parameter must be a number"
+        end
+      end
+
+      def configure_event_callbacks
+        @on_vuln = nil
+        @on_not_vuln = nil
+
+        if @options[:on_vuln]
+          if @options[:on_vuln] =~ /^@/
+            @on_vuln = lambda { |uri|
+              cmd = @options[:on_vuln].gsub('%uri%', uri)
+              system(cmd)
+            }
+          end
+        end
+
+        if @options[:on_not_vuln]
+          if @options[:on_not_vuln] =~ /^@/
+            @on_not_vuln = lambda { |uri|
+              cmd = @options[:on_not_vuln].gsub('%uri%', uri)
+              system(cmd)
+            }
+          end
+        end
+      end
+
+      def configure_search_engines
+        unless @options[:search_engines]
+          info "You have not given any search engine. Defaulting to Google API."
+          @options[:search_engines] = ['google-api']
+        end        
+
+        @engines = []
+        @options[:search_engines].each_with_index do |se, idx|
+          @engines[idx] = SEARCH_ENGINES[se].new()
+        end
+
+        return unless @options[:se_options]
+
+        @options[:se_options].split(";").each_with_index do |se_opts, idx|
+          engine_name, engine_opts = se_opts.split(":")
+          
+          engine_opts.split(",").each do |opt|
+            opt_name, opt_val = opt.split("=")
+            case engine_name
+            when 'google-api'
+              case opt_name
+              when 'offset'
+                offset = 0
+                begin
+                  offset = Integer(opt_val)
+                rescue ArgumentError
+                  fail_exec '"offset" parameter must be a number!'
+                end
+
+                fail_exec '"offset" cannot be greater than 64 due to Google API limitations!' \
+                  if offset > 64
+
+                @engines[idx].offset = offset
+              when 'size'
+                size = opt_val
+
+                fail_exec 'Invalid "size" option for Google API: must be "small" or "large"' \
+                  if size != 'large' && size != 'small'
+
+                @engines[idx].size = size.to_sym
+              when 'language'
+                @engines[idx].language = opt_val.to_sym
+              else
+                fail_exec "Unkown option #{opt_name} for search engine #{engine_name}"
               end
+            when 'bing-api'
+              case opt_name
+              when 'appid'
+                unless opt_val
+                  fail_exec "Bing API mode requires an AppID to perform searches!"
+                end
+                @engines[idx].appid = opts['appid']
+                end
+            when 'bing-pure'
+              case opt_name
+              when 'first'
+                begin
+                  @engines[idx].first = Integer(opt_val)
+                rescue ArgumentError
+                  fail_exec '"first" parameter must be a number'
+                end
+              end
+            when 'yahoo'
             end
           end
-        when 'yahoo'
         end
       end      
 
       def DorkScanner.random_user_agent
-        user_agents_file = ENV['DOOMCASTER_HOME'] + '/wordlists/user-agents'
+        user_agents_file = ENV['DOOMCASTER_HOME'] + '/user-agents'
         
         unless File.exists?(user_agents_file)
           fatalize_or_die "Cannot scan: File with list of user agents not found."
         end
         
-        user_agents = File.read(user_agents_file).split('\n')
+        user_agents = File.read(user_agents_file).split("\n")
         user_agents[rand(user_agents.length - 1)]
+      end
+
+      def str_matches_any?(str, values)
+        values.each do |val|
+          return true if str =~ Regexp.new(val)
+        end
+        false
+      end
+
+      def vals_are_in_body?(target)
+        if @options[:check_data].is_a?(String)
+          str_matches_any?(target, [@options[:check_data]])
+        else
+          str_matches_any?(target, @options[:check_data])
+        end
+      end
+
+      def vals_are_in_headers?(target)
+        target.each do |name, val|
+          arg = if @options[:check_data].is_a?(String)
+                  [@options[:check_data]]
+                else
+                  @options[:check_data]
+                end
+
+          return true if str_matches_any?(val, arg)
+        end
+        false
+      end
+
+      def check_vuln(target, curr_redir_depth = 0)
+        if curr_redir_depth == @options[:max_redir_depth]
+          info "Maximum redirection depth reached, giving up of this host"
+          return false
+        end
+        
+        conn_tries = 0
+
+        while true
+          begin
+            case @options[:http_method]
+            when 'GET'
+              @options[:http_headers]['User-Agent'] = DorkScanner::random_user_agent
+              res = do_http_get(target, @options[:http_headers], @proxy,
+                                {
+                                 :open_timeout => @options[:timeout],
+                                 :read_timeout => @options[:timeout]
+                                })
+              break
+            when 'POST'
+              
+            end
+          rescue Net::OpenTimeout
+            if conn_tries < 5
+              bad_info "Connection to #{target} timed out. Retrying..."
+              conn_tries += 1
+            else
+              bad_info "Max number of retries reached. Giving up of this host"
+              return false
+            end
+          rescue Net::ReadTimeout
+            if conn_tries < 5
+              bad_info "Host #{target} took to long to response. Retrying..."
+              conn_tries += 1
+            else
+              bad_info "Max number of retries reached. Giving up of this host"
+              return false
+            end
+          rescue SocketError => e
+            if conn_tries < 5
+              bad_info "Network error while trying to connect (#{e}). Retrying..."
+              conn_tries += 1
+            else
+              bad_info "Max number of retries reached. Giving up of this host"
+              return false
+            end
+          rescue StandardError => e
+            message = "An unknown error was caught: #{e.class.to_s + " :: " + e.to_s}."
+            message << " Because we don't know how to proceed, we'll give up of this host"
+            fatal message
+            return false
+          end
+        end
+
+        case res
+        when Net::HTTPOK
+          if @options[:in_body] && @options[:in_headers]
+            vals_are_in_body?(res.body) || val_is_in_headers?(res)
+          elsif @options[:in_body] || (!@options[:in_body] && !@options[:in_headers])
+            vals_are_in_body?(res.body)
+          else
+            val_is_in_headers?(res)
+          end
+        when Net::HTTPForbidden
+          bad_info "#{target} is inacessible! (403)"
+          return false
+        when Net::HTTPFound, Net::HTTPMovedPermanently
+          vuln = false
+          if @options[:follow_redirections] == 'ask' || @options[:follow_redirections] == 'yes'
+            location = res['Location']
+
+            new_uri = nil
+            if location.is_a?(URI)
+              new_uri = location
+              new_uri.scheme = 'http' unless new_uri.scheme
+            else
+              new_uri = URI.parse(location)
+              unless new_uri.host
+                new_uri.host = target.host
+                new_uri.scheme = 'http' unless new_uri.scheme
+              end
+            end
+
+            new_uri = perform_uri_replaces(new_uri)
+            
+            if @options[:follow_redirections] == 'ask'
+              ask "Got a redirection to #{new_uri}. Do you want to follow it?", ['y','n'] do |arr|
+                arr.on('y') do
+                  normal_info "Ok!"
+                  vuln = check_vuln(new_uri, curr_redir_depth + 1)
+                end
+
+                arr.on('n') do
+                  normal_info "Ok..."
+                  vuln = false
+                end
+              end
+            else
+              info "#{target} redirected to #{new_uri}"
+              vuln = check_vuln(new_uri, curr_redir_depth + 1)
+            end
+          else
+            info "Ignoring redirection gotten from #{target}"
+          end
+
+          return vuln
+        when Net::HTTPNotFound
+          bad_info "Resource/directory in #{target} not found! (404)"
+          return false
+        else
+          bad_info "Received an unhandable HTTP status: #{res.code}"
+          return false
+        end
       end
       
       def on_scan_complete(count)

@@ -326,7 +326,7 @@ It would be useful in a scan to dump everything.
                                  })
       end
 
-      def run
+      def before_run
         set_sqlmap_cmd
         #print banner
         
@@ -352,8 +352,10 @@ It would be useful in a scan to dump everything.
         rescue BadConfiguredSwitchError => e
           return if fatalize_or_die e.message
         end
+      end
 
-        run_sqlmap
+      def do_run_tool
+        run_sqlmap()
       end
 
       def parse_opts(parser, args = ARGV)

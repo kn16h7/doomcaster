@@ -26,75 +26,77 @@ NAME: name of your list
 Then just fill the file with the possible pages, one per line.
                                  })
       end
-      
-      def run
-        site = @options[:host]
-        list = @options[:list]
+
+      def before_run
+        @site = @options[:host]
+        @list = @options[:list]
 
         list_path = unless @options[:list_path]
-                      @options[:list_path] = File.expand_path('wordlists/admin-lists', ENV['DOOMCASTER_HOME'])
+                      @options[:list_path] = File.expand_path('admin-lists', ENV['DOOMCASTER_HOME'])
                       @options[:list_path]
                     else
                       @options[:list_path]
                     end
         
-        lists = get_lists(list_path)
-        fail_exec self.name, "Cannot scan site: No list available" if lists.empty?
+        @lists = get_lists(list_path)
+        fail_exec self.name, "Cannot scan site: No list available" if @lists.empty?
 
         if @options[:list]
           unless lists.include?(@options[:list])
             fail_exec "Cannot scan site: The list you have specified with --list is unknown"
           end
         end
-
+      end
+      
+      def do_run_tool
         system('clear')
         Arts::dc_admin_buster_banner
         
-        unless site
+        unless @site
           message = "Enter the website you want to scan "
           message <<  "(e.g.: www.domaine.com or www.domaine.com/path\):"
-          site = ask_no_question message
+          @site = ask_no_question message
         end
         
-        unless list
+        unless @list
           print "\n"
           info "Enter the list you want to use."
           info "The available lists are:\n"
 
-          lists.each_index { |idx|
-            puts " [#{idx}] #{lists[idx]}".red.bold
+          @lists.each_index { |idx|
+            puts " [#{idx}] #{@lists[idx]}".red.bold
           }
 
           loop do
             idx = read_num_from_user()
-            unless lists[idx]
+            unless @lists[idx]
               puts " Unknown list!".bg_red
             else
-              list = lists[idx]
+              @list = @lists[idx]
               break
             end
           end
         end
 
         begin
-          site = URI.parse(site)
+          @site = URI.parse(@site)
         rescue URI::InvalidURIError
           fail_exec "Cannot scan: #{site} is not a valid URL."
         end
 
-        if site.scheme
-          if site.scheme != 'http' && site.scheme != 'https'
+        if @site.scheme
+          if @site.scheme != 'http' && @site.scheme != 'https'
             fail_exec "Cannot scan: URI does not point to a site"
           end
         else
-          site.scheme = 'http'
+          @site = URI.parse('http://' + @site.to_s)
         end
 
         puts "\n"
-        info "The website: #{site}"
-        info "List to be used: #{list}"
+        info "The website: #{@site}"
+        info "List to be used: #{@list}"
         info "Scan of the admin control panel is progressing...\n"
-        search_generic(site, list)
+        search_generic(@site, @list)
       end
 
       def parse_opts(parser, args = ARGV)
@@ -168,10 +170,12 @@ Then just fill the file with the possible pages, one per line.
         list_file = File.expand_path(list_file_name, start_path)
         
         File.open(list_file) do |f|
+          tries = 0
+          
           f.each_line do |line|
             next if line =~ /^NAME:/
             
-            line = line.chomp
+            line.chomp!
             try_uri = site.clone
             
             if line =~ /\?/
@@ -195,12 +199,23 @@ Then just fill the file with the possible pages, one per line.
             normal_info "Trying: #{try_uri}"
             res = nil
             begin
-              Timeout::timeout(60) do
-                res = do_http_get(try_uri, nil, @proxy)
+              res = do_http_get(try_uri, nil, @proxy,
+                                {
+                                 :open_timeout => 60,
+                                 :read_timeout => 60
+                                })
+            rescue Net::OpenTimeout, Net::ReadTimeout
+              if tries != 5
+                fatal "Request timed out, retrying..."
+                tries += 1
+                retry
+              else
+                message = "Request timed out and max number of retries reached. "
+                message << "Giving up of this host"
+                fatal message
+                tries = 0
+                next
               end
-            rescue Timeout::Error
-              fatal "Request timed out"
-              next
             rescue SocketError
               fatal "Network error while attempting"
               next
@@ -283,7 +298,7 @@ Then just fill the file with the possible pages, one per line.
             else
               bad_info "Not Found <- #{try_uri}"
             end
-
+            
             if found
               warn "WARNING: It's recommended to you to check if the page is really what you want!"
 
@@ -298,6 +313,7 @@ Then just fill the file with the possible pages, one per line.
                 end
               end
             end
+            tries = 0
           end
         end
       end

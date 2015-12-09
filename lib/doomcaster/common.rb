@@ -59,9 +59,17 @@ module DoomCaster
     def desc
       raise NotImplementedError
     end
+
+    def before_run
+    end
     
-    def run
-      raise NotImplementedError
+    def run_tool
+      before_run()
+      do_run_tool()
+      after_run()
+    end
+
+    def after_run
     end
 
     def parse_opts(parser, args = ARGV)
@@ -71,6 +79,10 @@ module DoomCaster
     def fail_exec(msg)
       fatalize_or_die msg
       raise ToolExecFailedError, self.name
+    end
+
+    protected
+    def do_run_tool
     end
   end
 
