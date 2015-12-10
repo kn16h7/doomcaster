@@ -246,6 +246,7 @@ module DoomCaster
                          else
                            File.expand_path('/wordlists/sqlmap-wrapper-scans', ENV['DOOMCASTER_HOME'])
                          end
+        verbose "The path where this tool will look up for files is #{scan_file_home}"
 
         if Dir.foreach(scan_file_home).include?(name)
           switches = []
@@ -259,11 +260,15 @@ module DoomCaster
             else
               attributes = KNOWN_SWITCHES[option]
 
+              switch = nil
               if attributes.include?(:value_required)
-                switches << SqlmapSwitch.new(attributes, option, value)
+                switch = SqlmapSwitch.new(attributes, option, value)
               else
-                switches << SqlmapSwitch.new(attributes, option)
+                switch = SqlmapSwitch.new(attributes, option)
               end
+
+              verbose "Loaded switch #{switch} from file #{file_scans_path}"
+              switches << switch
             end
           end
           switches
@@ -344,13 +349,13 @@ It would be useful in a scan to dump everything.
           message = "Lacking a scan type or a set of switches. Specify a scan type "
           message << "with --scan-file or pass the switches directly to sqlmap with "
           message << "--switches."
-          return if fatalize_or_die message
+          fail_exec message
         end
 
         begin
           analize_options(@switch_set)
         rescue BadConfiguredSwitchError => e
-          return if fatalize_or_die e.message
+          fail_exec e.message
         end
       end
 
@@ -467,12 +472,14 @@ It would be useful in a scan to dump everything.
             message << "Please install sqlmap or specify the directory where sqlmap.py is "
             message << "installed with the option \"--sqlmap-path <path>\" (in case that "
             message << "sqlmap is installed in a custom directory)."
-            fatalize_or_die(message)
+            fail_exec message
           else
             sqlmap_path = File.expand_path(@options[:sqlmap_path])
+            
+            verbose "Possible sqlmap path is #{sqlmap_path}"
 
             unless File.exists?(sqlmap_path)
-              message = "Error: The path you specified as sqlmap path does not "
+              message = "The path you specified as sqlmap path does not "
               message << "exist.\n"
               message << "TIP: Remember that if the path is not absolute, DoomCaster "
               message << "will use the current path as reference to build the complete "
@@ -481,13 +488,13 @@ It would be useful in a scan to dump everything.
             end
 
             unless File.directory?(sqlmap_path)
-              message = "Error: The path you specified as sqlmap path is not a "
+              message = "The path you specified as sqlmap path is not a "
               message << "directory."
               fail_exec message
             end
 
             unless Dir.foreach(sqlmap_path).include?('sqlmap.py')
-              message = "Error: sqlmap.py does not exist inside the directory "
+              message = "sqlmap.py does not exist inside the directory "
               message << "you specified as sqlmap path."
               fail_exec message
             end
@@ -509,6 +516,7 @@ It would be useful in a scan to dump everything.
         else
           @sqlmap_cmd = "sqlmap"
         end
+        verbose "Obtained command to run sqlmap is #{@sqlmap_cmd}"
       end
 
       def set_switches(switches, switch_set)

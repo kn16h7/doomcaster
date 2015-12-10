@@ -1,8 +1,6 @@
 module DoomCaster
   module Tools
     class AdminFinder < NetTool
-      require 'timeout'
-      
       def initialize
         super('dc-admin-buster', {})
       end
@@ -37,13 +35,15 @@ Then just fill the file with the possible pages, one per line.
                     else
                       @options[:list_path]
                     end
+
+        verbose "Path where lists will be looked up is #{list_path}"
         
         @lists = get_lists(list_path)
         fail_exec self.name, "Cannot scan site: No list available" if @lists.empty?
 
         if @options[:list]
           unless lists.include?(@options[:list])
-            fail_exec "Cannot scan site: The list you have specified with --list is unknown"
+            fail_exec "Cannot scan site: The given list was not found"
           end
         end
       end
@@ -103,7 +103,7 @@ Then just fill the file with the possible pages, one per line.
         @parser = parser
 
         @parser.separator ""
-        @parser.separator "admin-finder options:\n"
+        @parser.separator "dc-admin-buster options:\n"
 
         args.map! do |arg|
           if arg =~ /^--/
@@ -173,8 +173,6 @@ Then just fill the file with the possible pages, one per line.
           tries = 0
           
           f.each_line do |line|
-            next if line =~ /^NAME:/
-            
             line.chomp!
             try_uri = site.clone
             
@@ -226,6 +224,8 @@ Then just fill the file with the possible pages, one per line.
               next
             elsif res.code =~ /301/ || res.code =~ /302/
               location = res['Location']
+
+              verbose "#{try_uri} redirected to the possible URI or resource #{location}"
 
               new_uri = nil
               if location.is_a?(URI)
