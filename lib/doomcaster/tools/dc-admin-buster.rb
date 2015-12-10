@@ -1,28 +1,37 @@
 module DoomCaster
   module Tools
     class AdminFinder < NetTool
+      SIMPLE_DESC = "A tool for find the administrative page in websites.\n\n"
+      DETAILED_DESC = "This tool takes an URL pointing to a site the user provides\n" +
+        "and simply looks for an administrative web page based on a list of very common\n" +
+        "administrative pages.\n\n" +
+        "Command line options:\n" +
+        "--host <host>\n" +
+        "Use this option to provide a site directly to this tool. The host is simply the\n" +
+        "target of the admin page look up.\n\n" +
+        "--list <list>\n" +
+        "The name of the list you want to use to do the look up. The list is normally a text\n" +
+        "file containing an URI directory/resource representing a possible admin page, which is\n" +
+        "a very common or known name for an administrative panel in a site. This tool will build\n" +
+        "an URL joining the given site host and the resource/directory in each line, check if it's\n" +
+        "accessible (does not give a 404, 500, 403 or any similar HTTP response) and, if it is, check\n" +
+        "if the page content contains some hint suggesting that it's an admin page.\n\n" +
+        "--list-path <path>\n" +
+        "An directory alternative to the default directory inside DOOMCASTER_HOME where this tool will\n" +
+        "look up for lists. If this option were not provided, this tool will look up for lists in: DOOMCASTER_HOME\n" +
+        "/admin-lists.\n\n" +
+        "--help\n" +
+        "Display a simple help message.\n\n" +
+        "--manual\n" +
+        "Display this manual."
+      
       def initialize
         super('dc-admin-buster', {})
       end
 
       public
       def desc
-        DoomCaster::ToolDesc.new(
-                                 %q{A tool for find the administrative page in websites},
-                                 %Q{
-This tool try to find the admin page of an website by brute force, based on a
-list and in some previous conditions. This tool will ask you for a site and an
-list for select a list and start.
-
-You can create your own list of possible admin pages. For this, go to:
-/home/<your-home>/.doomcaster.rb/wordlists/admin-lists and inside this directory
-create a new file where the first line MUST be:
-
-NAME: name of your list
-...
-
-Then just fill the file with the possible pages, one per line.
-                                 })
+        DoomCaster::ToolDesc.new(SIMPLE_DESC, DETAILED_DESC)
       end
 
       def before_run

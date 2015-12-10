@@ -288,7 +288,7 @@ module DoomCaster
 This tool is a simple wrapper to run sqlmap. It's meant to simplify its use
 avoiding the need of repeat a lot of very used switches using "scan files".
 A scan file is a simple list with a sqlmap swich (without the dashes) and its
-argument. If you want that a argument to be attributable in the command line
+arguments. If you want that a argument to be overwritable in the command line
 (with the option "--switches", to overwrite the "(undefined)" value).
 
 Examples:
@@ -316,7 +316,7 @@ It would give an error saying that you need to overwrite the switch "--url" with
 a value.
 
 You can create your own scan files to generalize repetitive commands inside:
-/home/<your-home>/.doomcaster/wordlists/sqlmap-wrapper-scans
+$DOOMCASTER_HOME/sqlmap-wrapper-scans
 
 For example: A scan file called "dump-all" with the following content:
 

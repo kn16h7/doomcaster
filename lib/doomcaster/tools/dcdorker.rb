@@ -168,6 +168,16 @@ module DoomCaster
       class YahooSearchEngine < SearchEngine
       end
 
+      SIMPLE_DESC = "A tool to look for vulnerable hosts based on a dork" +
+        " to be used with an array of searh engines."
+
+      DETAILED_DESC = "This tool takes: A dork provided by the user, a list of search engines\n" +
+        "to be used and a great array of options to customize the vulnerability detection.\n\n" +
+        "dcdorker is aimed to be a flexible, customizable and robust automatic dorker that works\n" +
+        "on a lot of search engines and can merge the result of searches of several of them to\n" +
+        "increase its efficiency.\n\n" +
+        ""
+
       SEARCH_ENGINES = {
                         'google-api' => GoogleApiSearchEngine,
                         'google-pure' => GooglePureSearchEngine,
@@ -183,25 +193,7 @@ module DoomCaster
       
       public
       def desc
-        DoomCaster::ToolDesc.new(
-                                 %q{A tool to look for vulnerable sites based on a Google Dork},
-                                 %Q{
-This tool takes: A random dork from a wordlist or a custom dork provided by
-the user and a domain. Then, it uses it to look for sites vulnerable to SQL
-Injection on Google. The user says how many sites he/she wants and this tool
-will look for as many sites as possible and deliver them to the user.
-
-LISTS:
-You can create you own list of dorks, to this, go to the directory:
-/home/<your-home>/.doomcaster/wordlists/dork-lists and create a new file with
-the first line as:
-NAME: <name of your dork list>
-
-Then just put the dorks, one per line.
-
-Doomcaster comes with a default dork lists called Super Word List, with a total
-of 28605 dorks.
-                                 })
+        DoomCaster::ToolDesc.new(SIMPLE_DESC, DETAILED_DESC)
       end
 
       def before_run
@@ -409,6 +401,8 @@ separed by comas") do |list|
           se.query = dork
         end
 
+        error_num = 0
+
         loop do
           results = []
           @engines.each do |se|
@@ -418,13 +412,15 @@ separed by comas") do |list|
               results += results
             rescue => e
               se.handle_search_error(e)
-
-              fail_exec "Search failed" if @engines.length == 1
+              error_num += 1
             end
           end
 
+          fail_exec "Cannot dork: Attempt of search in all engines failed!" \
+            if error_num == @engines.length
+
           info "Got a total of #{results.length} targets" if @engines.length > 1
-                    
+          
           asked_num_reached = walk_results_list(results, num)
 
           if se_list_only_cont_limited_ses && @options[:dont_giveup]
@@ -432,7 +428,7 @@ separed by comas") do |list|
             message << "hosts not, and it'll not possible to perform a new search "
             message << "because the search engines you choose have a maximum limit "
             message << "of results."
-            bad_info message
+            fatal message
             break
           end
           
@@ -442,7 +438,7 @@ separed by comas") do |list|
             info message
             
             @engines.each do |se|
-              se.offset = 100
+              se.offset += 100
             end
           else
             break
