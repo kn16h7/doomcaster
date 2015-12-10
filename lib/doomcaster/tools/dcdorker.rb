@@ -469,26 +469,28 @@ separed by comas") do |list|
         domain_cache = []
         results.each do |res|
           if !domain_cache.include?(res.host) || @options[:disable_host_cache]
-            info "Testing host #{res}"
-            
-            if res.query && @options[:uri_query_replace]
-              res = perform_uri_replaces(res)
-            elsif !res.query && @options[:uri_query_replace]
-              info "URI #{res} has not any parameter to perform replacements. Therefore it will be ignored"
-              puts
-              next
-            end
-            
-            if check_vuln(res)
-              @vuln_sites << res
-              good "Host #{res} seems vulnerable!"
+            unless @options[:filtered_hosts].include?(res.host) 
+              info "Testing host #{res}"
+              
+              if res.query && @options[:uri_query_replace]
+                res = perform_uri_replaces(res)
+              elsif !res.query && @options[:uri_query_replace]
+                info "URI #{res} has not any parameter to perform replacements. Therefore it will be ignored"
+                puts
+                next
+              end
+              
+              if check_vuln(res)
+                @vuln_sites << res
+                good "Host #{res} seems vulnerable!"
 
-              break if @vuln_sites.length == num
-            else
-              bad_info "Host #{res} seems to be not vulnerable"
+                break if @vuln_sites.length == num
+              else
+                bad_info "Host #{res} seems to be not vulnerable"
+              end
+              domain_cache << res.host
+              puts
             end
-            domain_cache << res.host
-            puts
           end
         end
 
