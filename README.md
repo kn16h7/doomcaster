@@ -23,26 +23,13 @@ In your terminal, execute these commands:
 ```
 $ git clone https://github.com/53F4N/doomcaster
 $ cd doomcaster
-$ rake
+$ rake all clean
 ```
 
-Inside the folder these commands were ran, there'll be a file named
-"doomcaster-VERSION.zip", extract this file and execute the install.sh
-script inside it. Or change to the production/ directory inside the
-project and execute the install script.
+If you want the zip Rake creates, execute a ```rake all``` instead, and a file
+named doomcaster-VERSION.zip will be in the project root directory. This zip
+contains the entire project packaged and with the build capaable to be reproduced.
 
-Example:
-```
-$ cd production
-& ./install.sh
-```
-You can freely distribute the zip.
+# Why is this readme file so silly and devoid of seriousness?
 
-# Update for version 1.8.3
-
-There's a new Rake task that does everything to have DoomCaster installed.
-Now you can install DoomCaster by simply:
-```
-$ git clone https://github.com/53F4N/doomcaster 
-& rake all
-```
+Because I do not take this project so seriously.
