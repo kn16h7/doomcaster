@@ -207,7 +207,7 @@ module DoomCaster
             normal_info "Trying: #{try_uri}"
             res = nil
             begin
-              res = do_http_get(try_uri, nil, @proxy,
+              res = do_http_get(try_uri, @proxy, nil,
                                 {
                                  :open_timeout => 60,
                                  :read_timeout => 60
@@ -251,7 +251,11 @@ module DoomCaster
               end
               
               normal_info "Possible admin page found in: #{new_uri}. But DoomCaster will check!"
-              new_res = do_http_get(new_uri, nil, @proxy)
+              new_res = do_http_get(new_uri, @proxy, nil,
+                                    {
+                                     :open_timeout => 60,
+                                     :read_timeout => 60
+                                    })
               
               if check_site(new_res)
                 good "Found -> #{new_uri}\n"

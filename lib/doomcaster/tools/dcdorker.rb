@@ -67,7 +67,7 @@ module DoomCaster
           params = ["q=#{@query}", "num=#{@num}", "start=#{@offset}"]
           complete_uri = BASE_URI + params.join("&")
           user_agent = DorkScanner::random_user_agent
-          res = do_http_get(complete_uri, {'User-Agent' => user_agent})
+          res = do_http_get(complete_uri, nil, {'User-Agent' => user_agent})
 
           info "Performing a Google Search."
           verbose "The complete URL is #{complete_uri}"
@@ -92,7 +92,11 @@ module DoomCaster
                                  end
                                end
                        
-                       new_res = do_http_get(redir, {'User-Agent' => user_agent, 'Host' => redir.host})
+                       new_res = do_http_get(redir, nil,
+                                             {
+                                              'User-Agent' => user_agent,
+                                              'Host' => redir.host
+                                             })
                        new_res.body
                      end
           
@@ -154,7 +158,10 @@ module DoomCaster
 
             verbose "Performing a Bing search, the complete URI is #{search_uri.to_s}"
 
-            search_res = do_http_get(search_uri, {'User-Agent' => random_user_agent()})
+            search_res = do_http_get(search_uri, nil,
+                                     {
+                                      'User-Agent' => random_user_agent()
+                                     })
 
             links = []
             Nokogiri::HTML(search_res.body).css('.b_algo .b_title h2 a').each { |link|

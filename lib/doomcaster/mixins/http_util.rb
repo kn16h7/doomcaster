@@ -24,8 +24,43 @@ module DoomCaster
         Net::HTTP.Get.new('/', headers)
       end
     end
+
+    def build_post_req(uri, headers, post_data)
+      retval = Net::HTTP::Post.new(uri, headers)
+      retval.set_post_data(post_data)
+      retval
+    end
+
+    def do_http_post(uri, proxy_info = nil, headers = nil, post_data = nil, opts = nil)
+      uri = URI.parse(URI.escape(uri)) unless uri.is_a?(URI)
+
+      if proxy_info
+        if proxy_info.type == 'HTTP'
+          if proxy_info.name || proxy_info.password
+            Net::HTTP.start(uri.host, uri.port, proxy_info.addr, proxy_info.port,
+                            proxy_info.name, proxy_info.password, opts) do |http|
+              return http.request(build_post_req(uri, headers, post_data))
+            end
+          else
+            Net::HTTP.start(uri.host, uri.port, proxy_info.addr, proxy_info.port, opts) do |http|
+              return http.request(build_post_req(uri, headers, post_data))
+            end
+          end
+        elsif proxy_info.type == 'SOCKS'
+          Net::HTTP.SOCKSProxy(proxy_info.addr, proxy_info.port).start(uri.host, uri.port, opts) do |http|
+            return http.request(build_post_req(uri, headers, post_data))
+          end
+        else
+          raise ArgumentError, 'Unknown proxy type'
+        end
+      else
+        Net::HTTP.start(uri.host, uri.port, opts) do |http|
+          return http.request(build_post_req(uri, headers, post_data))
+        end
+      end
+    end
     
-    def do_http_get(uri, headers = nil, proxy_info = nil, opts = {})
+    def do_http_get(uri, proxy_info = nil, headers = nil, opts = {})
       uri = URI.parse(URI.escape(uri)) unless uri.is_a?(URI)
 
       opts[:use_ssl] = true if uri.scheme == 'https'
