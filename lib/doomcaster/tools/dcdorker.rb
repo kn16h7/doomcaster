@@ -2,7 +2,6 @@ module DoomCaster
   module Tools
     require 'google-search'
     require 'nokogiri'
-    require 'timeout'
     require 'pathname'
     require 'openssl'
     
@@ -17,6 +16,9 @@ module DoomCaster
         
         def perform_search
           raise NotImplementedError
+        end
+
+        def handle_search_error(e)
         end
       end
 
@@ -49,6 +51,8 @@ module DoomCaster
       end
 
       class GooglePureSearchEngine < SearchEngine
+        class GoogleBlockedSearchError < StandardError; end
+        
         BASE_URI = 'https://www.google.com/search?'.freeze
 
         attr_accessor :query, :num, :offset
@@ -74,14 +78,16 @@ module DoomCaster
                      when Net::HTTPFound
                        location = res['Location']
 
-                       raise GoogleBlockedSearchError if location.to_s =~ %r{https://ipv4.google.com/sorry/}
+                       raise GoogleBlockedSearchError \
+                         if location.to_s =~ %r{https://ipv4.google.com/sorry/}
                        
                        redir = if location.is_a?(URI)
                                  location
                                else
                                  begin
                                    URI.parse(location)
-                                 rescue InvalidURIError
+                                 rescue InvalidURIError => e
+                                   print_err_backtrace(e)
                                    URI.parse(URI.escape(location))
                                  end
                                end
@@ -95,9 +101,15 @@ module DoomCaster
           handle.css('.r a').each { |link| results << link['href'] }
           results.map! { |link| sanitize_uri(link) }
 
-          info "Search complete. Pure Google gave us #{results}"
+          info "Search complete. Pure Google gave us #{results.length}"
           
           results
+        end
+
+        def handle_search_error(e)
+          if e.is_a?(GoogleBlockedSearchError)
+            fatal "Cannot perform a search: Google blocked our automated searches!"
+          end
         end
 
         private
@@ -400,9 +412,19 @@ separed by comas") do |list|
         loop do
           results = []
           @engines.each do |se|
-            results += se.perform_search
+            result = nil
+            begin
+              result = se.perform_search
+              results += results
+            rescue => e
+              se.handle_search_error(e)
+
+              fail_exec "Search failed" if @engines.length == 1
+            end
           end
-          
+
+          info "Got a total of #{results.length} targets" if @engines.length > 1
+                    
           asked_num_reached = walk_results_list(results, num)
 
           if se_list_only_cont_limited_ses && @options[:dont_giveup]
@@ -752,6 +774,7 @@ separed by comas") do |list|
               return false
             end
           rescue SocketError => e
+            print_err_backtrace(e)
             if conn_tries < 5
               bad_info "Network error while trying to connect (#{e}). Retrying..."
               conn_tries += 1
@@ -760,6 +783,7 @@ separed by comas") do |list|
               return false
             end
           rescue StandardError => e
+            print_err_backtrace(e)
             message = "An unknown error was caught: #{e.class.to_s + " :: " + e.to_s}."
             message << " Because we don't know how to proceed, we'll give up of this host"
             fatal message

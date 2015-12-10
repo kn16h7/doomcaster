@@ -66,6 +66,13 @@ module DoomCaster
       puts " [^] #{msg}".pink
     end
 
+    def print_err_backtrace(e)
+      if $trace
+        puts "Error: #{e}"
+        puts "Backtrace:\n\t#{e.backtrace.join("\n\t")}"
+      end
+    end
+
     def fatalize_or_die(message)
       if $execution_mode == :once
         die message.bg_red
@@ -106,11 +113,6 @@ module DoomCaster
           puts " Invalid input!".bg_red
         end
       end
-    end
-
-    def fail_tool_exec(tool_name, msg)
-      fatalize_or_die msg
-      raise ToolExecFailedError, tool_name
     end
 
     def die(msg)

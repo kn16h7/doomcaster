@@ -175,8 +175,8 @@ module DoomCaster
           end
         end
 
-        opts.on("--debug", "Turn on debug mode") do
-          $debug = true
+        opts.on("--trace", "Show the complete backtrace of every error") do
+          $trace = true
         end
 
         opts.on("--version", "Print the version and exit") do

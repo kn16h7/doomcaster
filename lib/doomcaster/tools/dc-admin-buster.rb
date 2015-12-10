@@ -80,7 +80,8 @@ Then just fill the file with the possible pages, one per line.
 
         begin
           @site = URI.parse(@site)
-        rescue URI::InvalidURIError
+        rescue URI::InvalidURIError => e
+          print_err_backtrace(e)
           fail_exec "Cannot scan: #{site} is not a valid URL."
         end
 
@@ -214,8 +215,9 @@ Then just fill the file with the possible pages, one per line.
                 tries = 0
                 next
               end
-            rescue SocketError
-              fatal "Network error while attempting"
+            rescue SocketError => e
+              print_err_backtrace(e)
+              fatal "Network error while attempting (#{e})"
               next
             end
             
