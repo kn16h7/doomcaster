@@ -2,7 +2,7 @@
 
 echo "Installing DoomCaster..."
 
-LISTS_PATH=$HOME/.doomcaster/wordlists
+LISTS_PATH=$HOME/.doomcaster/
 
 if ! mkdir -p $LISTS_PATH; then
 	echo "FATAL: Failed to create DoomCaster home directory"

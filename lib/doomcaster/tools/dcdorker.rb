@@ -469,7 +469,7 @@ separed by comas") do |list|
         domain_cache = []
         results.each do |res|
           if !domain_cache.include?(res.host) || @options[:disable_host_cache]
-            unless @options[:filtered_hosts].include?(res.host) 
+            unless @options[:filtered_hosts].include?(res.host)
               info "Testing host #{res}"
               
               if res.query && @options[:uri_query_replace]
